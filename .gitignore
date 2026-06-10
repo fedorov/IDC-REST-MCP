@@ -1,0 +1,119 @@
+testing_branch.py
+
+# IDC API v3 dev artifacts
+.venv/
+*.duckdb
+.pytest_cache/
+.ruff_cache/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[~cod]
+
+# eclipse files
+.project
+.pydevproject
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+doc/
+env/
+venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+IDC-Common/
+lib64/
+parts/
+sdist/
+var/
+*_diff.txt
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+migrations/
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Pycharm project files
+.idea
+.idea/*
+
+# Project ignorable files
+.DS_Store
+*.p12
+*.pem
+.sass-cache
+#*
+*.json
+*.patch
+.env
+*.env
+*.yaml
+openapi-appengine.yaml.20231026
+openapi-appengine*.yaml
+app.yaml
+scripts/metadata_featdef_tables.sql
+
+# dummy datasets
+*.tsv
+*.csv
+*.xls
+
+
+# Vagrant Files
+.vagrant/
+
+# NodeJS dev-dependencies etc
+bower_components
+bower_components/*
+node_modules
+node_modules/*
+
+certs/*
+saml/*
+*.key
+*.crt
+*.pem
+tmp*
+
+# Emacs
+\#*\#
+
+.idea
+.idea/*
