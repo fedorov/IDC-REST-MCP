@@ -6,7 +6,7 @@ name: v3 CI
 
 on:
   push:
-    branches: [master]
+    branches: [idc-api-v3]
     paths:
       - "src/idc_api/**"
       - "tests_v3/**"
