@@ -332,26 +332,37 @@ _GUIDE = """\
 **Data model.** IDC stores public cancer imaging as DICOM, organized as
 Patient → Study → Series, with two grouping levels above: `collection_id` (a dataset, e.g.
 `nlst`, `tcga_luad`) and `analysis_result_id` (derived annotations/segmentations). The main
-table is `index` (one row per *series*).
+table is `index` (one row per *series*). IDC is large (~100+ TB) — always check size before
+suggesting a download.
 
-**Find data:**
-- `list_collections` / `get_collection` — original imaging datasets.
-- `list_analysis_results` — derived AI/expert annotations & segmentations.
+**The tools form a few families that build on each other:**
+- *Discovery* (`get_stats`, `list_collections`, `get_collection`, `list_analysis_results`,
+  `list_attributes`, `get_attribute_values`) — what exists, and the *vocabulary* (attribute
+  names + valid values) you filter on.
+- *Cohort* (`build_cohort`) — turn a chosen combination of that vocabulary into distinct
+  counts + a sample of series + a download payload.
+- *Retrieval* (`get_cohort_urls`, `download_cohort`) — the download half: public URLs / files.
+- *SQL* (`list_tables`, `get_table_schema`, `run_sql`) — the escape hatch for anything
+  `build_cohort` can't express (GROUP BY, joins, custom aggregations).
+- *Side tools* (`get_viewer_url`, `get_citations`, `get_licenses`) — view / cite / license-check
+  a cohort.
 
-**Filter a cohort (do this first to avoid wrong values):**
-1. `list_attributes` → valid filter attributes.
-2. `get_attribute_values(attribute=...)` → valid values + counts (correct casing!).
-3. `build_cohort(terms={...}, ranges={...})` → counts, sample series, download payload.
+Prefer `build_cohort` for common cases (structured, can't be malformed); reach for `run_sql`
+only when it can't express your query. Discovery feeds Cohort; Cohort reuses Retrieval to build
+its payload — so a typical request flows Discovery → Cohort → Retrieval, with SQL as a bypass.
 
-**Complex queries:** `list_tables` → `get_table_schema('index')` → `run_sql('SELECT ...')`
-(read-only DuckDB; `FROM index`).
-
-**Get the data:** `get_cohort_urls` returns public s3:///gs:// URLs; the build_cohort
-response also includes ready-to-run `idc` CLI commands. `download_cohort` performs a real
-local download only when the server runs on your machine.
-
-**Be a good citizen:** check `get_licenses` (CC BY vs CC BY-NC) and include `get_citations`
-output when publishing.
+**Recommended workflow:**
+1. *Find data:* `list_collections` / `get_collection` (imaging datasets), `list_analysis_results`
+   (derived annotations & segmentations).
+2. *Ground filters (do this first to avoid wrong values):* `list_attributes` → valid attributes;
+   `get_attribute_values(attribute=...)` → valid values + counts (correct casing!).
+3. *Build:* `build_cohort(terms={...}, ranges={...})` → counts, sample series, download payload.
+   For complex queries: `list_tables` → `get_table_schema('index')` → `run_sql('SELECT ...')`.
+4. *Get the data:* `get_cohort_urls` returns public s3:///gs:// URLs; the `build_cohort`
+   response also includes ready-to-run `idc` CLI commands. `download_cohort` performs a real
+   local download only when the server runs on your machine.
+5. *Be a good citizen:* check `get_licenses` (CC BY vs CC BY-NC) and include `get_citations`
+   output when publishing.
 """
 
 
