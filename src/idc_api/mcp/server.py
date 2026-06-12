@@ -31,23 +31,21 @@ from ..settings import get_settings
 logger = logging.getLogger("idc_api.mcp")
 
 INSTRUCTIONS = """\
-This server exposes the NCI Imaging Data Commons (IDC) — public cancer imaging (DICOM) data.
-All data is open; no authentication is needed. Data model: two independent labels group the
-DICOM hierarchy Patient → Study → Series — collection_id (the source dataset; a patient is in
-exactly one) and analysis_result_id (a derived dataset — segmentations/annotations — that can
-span multiple collections, so it is NOT nested under a single collection). The main queryable
-table is `index` (one row per series).
+This server exposes the NCI Imaging Data Commons (IDC) — public, open cancer imaging (DICOM)
+data; no authentication needed. The main table is `index` (one row per series); collection_id
+(source dataset) and analysis_result_id (derived datasets) group it.
 
-Recommended workflow:
-1. Ground your query first: use list_attributes + get_attribute_values to get *valid* filter
-   values (e.g. real Modality / BodyPartExamined values), and list_tables / get_table_schema
-   before writing SQL. Do not guess values.
-2. Explore with build_cohort (structured filters) for common cases, or run_sql (read-only
-   DuckDB SELECT over `index`) for anything complex.
-3. Sizes are large (IDC is ~100 TB). Always check counts/size_TB and warn the user before
-   suggesting a download. Use get_cohort_urls / the returned `idc` commands to download;
-   download_cohort actually transfers files only when this server runs locally.
-Cite data with get_citations and respect get_licenses (CC-BY vs CC-BY-NC)."""
+Work this way:
+1. Ground first — list_attributes + get_attribute_values for valid filter values; list_tables +
+   get_table_schema before SQL. Do not guess values or column names.
+2. build_cohort for attribute filters; run_sql for relational/aggregate questions (read-only
+   DuckDB; `index` plus the specialized indices — seg/ann/sm/ct/mr/pt, … — joined on
+   SeriesInstanceUID).
+3. IDC is large (100+ TB) — always report counts/size_TB and warn before any download.
+   download_cohort transfers files only when the server runs locally; otherwise use
+   get_cohort_urls / the returned `idc` commands.
+Cite with get_citations; respect get_licenses (CC-BY vs CC-BY-NC). See `idc://guide` for the
+data model, the full tool list, and join examples."""
 
 # stateless_http=True / json_response=True make the hosted (streamable-http) transport
 # horizontally scalable on Cloud Run.

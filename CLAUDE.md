@@ -58,9 +58,15 @@ v3 docs are split by audience — keep them in their lanes:
   relate, the recommended workflow, worked REST/MCP examples, and the config reference. Usage
   documentation belongs here.
 - **`idc://guide` MCP resource** (the `_GUIDE` string in `src/idc_api/mcp/server.py`) — the
-  **agent-facing** guide. It mirrors the *same conceptual model* as the user guide (tool
-  families, how they relate, the workflow). **Keep it in sync** when the conceptual model
-  changes. Note: `tests_v3/test_mcp.py` asserts this resource contains "Data model".
+  **agent-facing** guide and the *canonical* place for the conceptual model on the agent side.
+  It mirrors the *same conceptual model* as the user guide (tool families, how they relate, the
+  workflow). **Keep it in sync** when the conceptual model changes. Note: `tests_v3/test_mcp.py`
+  asserts this resource contains "Data model".
+- **`INSTRUCTIONS` (in `src/idc_api/mcp/server.py`)** — the MCP server `instructions`, injected
+  into the agent's prompt on *every* session (always-on, most token-sensitive). Keep it **lean**:
+  orientation + the behavioral rules (ground-first, check size before download, cite/license)
+  + a pointer to `idc://guide`. **Do not** restate the full data model / tool reference here —
+  put detail in `idc://guide` so this third copy can't silently drift.
 - **[README_v3.md](README_v3.md)** — kept **lean**: intro, status, install, run one-liners,
   deploy, and pointers. **Do not** add endpoint/tool reference or usage detail here — that goes
   in the user guide.
@@ -69,4 +75,5 @@ v3 docs are split by audience — keep them in their lanes:
   [deployment.md](dev/deployment.md), [developer_guide.md](dev/developer_guide.md).
 
 When you add or change a v3 capability: update `docs/user-guide.md`; mirror any conceptual
-change into the `idc://guide` resource; keep `README_v3.md` a pointer.
+change into the `idc://guide` resource; check whether `INSTRUCTIONS` needs a one-line touch (it
+usually shouldn't, if it stays lean); keep `README_v3.md` a pointer.
