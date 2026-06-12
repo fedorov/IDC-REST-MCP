@@ -138,9 +138,14 @@ SELECT i.collection_id, count(DISTINCT i.SeriesInstanceUID) AS slides
 FROM index i
 JOIN seg_index seg ON seg.segmented_SeriesInstanceUID = i.SeriesInstanceUID
 WHERE i.Modality = 'SM'                                    -- slide microscopy (pathology)
-  AND seg.SegmentedPropertyType_CodeMeanings LIKE '%Nucleus%'   -- the segmented structure
+  AND list_contains(seg.SegmentedPropertyType_CodeMeanings, 'Nucleus')  -- the segmented structure
 GROUP BY 1 ORDER BY slides DESC
 ```
+
+> **Array columns:** columns whose schema type is `STRING[]` (e.g. the `*_CodeMeanings`
+> columns above) hold a *list* of values per row — match elements with
+> `list_contains(col, 'value')`, not `=` or `LIKE`. If a query is invalid, the error response
+> carries DuckDB's own message (including its "Did you mean …?" suggestions), so fix and retry.
 
 > **Still BigQuery-only:** a handful of things remain outside these indices — *per-individual-segment*
 > detail (each segment rather than the series-level `DISTINCT`-aggregated code lists in

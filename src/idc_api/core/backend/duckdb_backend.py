@@ -270,7 +270,13 @@ class DuckDBBackend(QueryBackend):
         # Engine-level row cap: wrap and fetch one extra row to detect truncation. The
         # read-only connection + disabled external access are the real safety boundary.
         wrapped = f"SELECT * FROM (\n{inner}\n) AS _idc_sub LIMIT {max_rows + 1}"
-        cols, rows = self._execute(wrapped, None, timeout_s)
+        try:
+            cols, rows = self._execute(wrapped, None, timeout_s)
+        except duckdb.Error as exc:
+            # Surface the engine's message verbatim — its "Did you mean ...?" / candidate-
+            # binding hints are what let an LLM caller correct its SQL and retry. Safe to
+            # expose: the SQL is the caller's own text and the schema is public.
+            raise InvalidQueryError(str(exc)) from None
         return self._result(cols, rows, max_rows)
 
     def _validate_select(self, sql: str) -> None:

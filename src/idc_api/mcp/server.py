@@ -393,7 +393,9 @@ series via `segmented_SeriesInstanceUID` / `referenced_SeriesInstanceUID`; note 
 relational questions answerable — e.g. "pathology slides (Modality='SM') with a segmentation of
 structure X" is
 `index JOIN seg_index ON seg_index.segmented_SeriesInstanceUID = index.SeriesInstanceUID`,
-filtered on `seg_index.SegmentedPropertyType_CodeMeanings`. Call `get_table_schema(table)` for
+filtered with `list_contains(seg_index.SegmentedPropertyType_CodeMeanings, 'X')`. Columns typed
+`STRING[]` (e.g. the `*_CodeMeanings` columns) are arrays — match elements with
+`list_contains(col, 'value')`, not `=` or `LIKE`. Call `get_table_schema(table)` for
 exact columns. Still BigQuery-only: per-individual-segment detail, SR radiomics measurements,
 and private DICOM elements — point the user to `idc-index` + BigQuery for those.
 """

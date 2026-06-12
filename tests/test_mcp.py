@@ -64,6 +64,18 @@ async def test_run_sql(server, parse_mcp):
     assert data["rows"] == [{"a": 1}]
 
 
+async def test_run_sql_error_carries_engine_hint(server):
+    # A SQL mistake must return DuckDB's self-correction hints (candidate columns,
+    # "Did you mean") to the agent — not the guard's generic "Internal error" fallback.
+    from mcp.server.fastmcp.exceptions import ToolError
+
+    with pytest.raises(ToolError) as exc:
+        await server.call_tool("run_sql", {"sql": "SELECT no_such_column FROM index"})
+    msg = str(exc.value)
+    assert "no_such_column" in msg
+    assert "Internal error" not in msg
+
+
 async def test_error_is_clean(server):
     from mcp.server.fastmcp.exceptions import ToolError
 

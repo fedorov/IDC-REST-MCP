@@ -49,9 +49,12 @@ def test_specialized_tables_are_available(tables):
 def test_get_table_schema_describes_seg_index(ctx, tables):
     if "seg_index" not in tables:
         pytest.skip("seg_index not included in this build")
-    cols = {c.name for c in ctx.query.get_table_schema("seg_index").columns}
+    cols = {c.name: c for c in ctx.query.get_table_schema("seg_index").columns}
     # the join key that links a segmentation to the image series it segments
     assert "segmented_SeriesInstanceUID" in cols
+    # mode=REPEATED columns must advertise as arrays — declaring them STRING steers SQL
+    # callers into `col = 'x'` / LIKE predicates the engine rejects (use list_contains)
+    assert cols["SegmentedPropertyType_CodeMeanings"].type == "STRING[]"
 
 
 def test_slides_with_segmentations_join(ctx, tables):
@@ -62,5 +65,16 @@ def test_slides_with_segmentations_join(ctx, tables):
         "FROM index i "
         "JOIN seg_index seg ON seg.segmented_SeriesInstanceUID = i.SeriesInstanceUID "
         "WHERE i.Modality = 'SM'"
+    )
+    assert res.rows[0]["n"] > 0
+
+
+def test_list_contains_filters_segmented_anatomy(ctx, tables):
+    # The documented idiom for the array-typed *_CodeMeanings columns (the guide's example).
+    if "seg_index" not in tables:
+        pytest.skip("seg_index not included in this build")
+    res = ctx.query.run_sql(
+        "SELECT count(*) AS n FROM seg_index "
+        "WHERE list_contains(SegmentedPropertyType_CodeMeanings, 'Liver')"
     )
     assert res.rows[0]["n"] > 0

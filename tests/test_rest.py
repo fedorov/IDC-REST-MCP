@@ -51,6 +51,16 @@ def test_sql_ok_and_guarded(client):
     assert bad.json()["error"]["code"] == "invalid_query"
 
 
+def test_sql_engine_error_is_a_clean_400(client):
+    # DuckDB binder errors map to invalid_query with the engine's hint in the message,
+    # mirroring the MCP adapter (same InvalidQueryError from the shared backend).
+    r = client.post("/v3/sql", json={"sql": "SELECT no_such_column FROM index"})
+    assert r.status_code == 400
+    err = r.json()["error"]
+    assert err["code"] == "invalid_query"
+    assert "no_such_column" in err["message"]
+
+
 def test_download_disabled_returns_501(client):
     r = client.post("/v3/download", json={"download_dir": "/tmp/x", "collection_id": ["rider_pilot"]})
     assert r.status_code == 501

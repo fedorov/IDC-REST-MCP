@@ -113,6 +113,16 @@ def include_token(included: list[str]) -> str:
     return f"sub-{digest}"
 
 
+def _column_type(c: dict) -> str:
+    """Render a schema-JSON column type, folding the BigQuery-style ``mode`` field in:
+    ``{type: STRING, mode: REPEATED}`` is an *array* column — ``STRING[]`` in DuckDB terms.
+    Dropping the mode (as we used to) advertises arrays as plain strings, which steers SQL
+    callers into predicates like ``col = 'x'`` / ``col LIKE ...`` that the engine rejects;
+    match array elements with ``list_contains(col, 'x')`` instead."""
+    t = c.get("type", "")
+    return f"{t}[]" if c.get("mode") == "REPEATED" else t
+
+
 @lru_cache(maxsize=None)
 def table_schema(table: str) -> dict:
     """Return ``{name, description, columns:[{name,type,description}]}`` for a table,
@@ -122,7 +132,7 @@ def table_schema(table: str) -> dict:
     columns = [
         {
             "name": c["name"],
-            "type": c.get("type", ""),
+            "type": _column_type(c),
             "description": c.get("description", "") or "",
         }
         for c in schema.get("columns", [])
@@ -162,8 +172,8 @@ FILTERABLE_ATTRIBUTES: list[dict] = [
         "note": (
             "Caution: this is the body region the source acquisition imaged — for derived "
             "series (SEG/RTSTRUCT) it does NOT say what was segmented. Segmented anatomy "
-            "lives in seg_index.SegmentedPropertyType_CodeMeanings (join seg_index to index "
-            "via SQL)."
+            "lives in seg_index.SegmentedPropertyType_CodeMeanings (an array column — join "
+            "seg_index to index via SQL and match with list_contains)."
         ),
     },
     {"name": "Manufacturer", "kind": "term", "categorical": True},

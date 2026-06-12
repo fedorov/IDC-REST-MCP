@@ -41,10 +41,24 @@ def test_non_select_rejected(backend, sql):
 
 
 def test_external_file_access_blocked(backend):
-    # enable_external_access=false -> reading local files is denied by the engine.
-    with pytest.raises(Exception) as exc:
+    # enable_external_access=false -> reading local files is denied by the engine, and the
+    # engine's refusal surfaces as a clean caller-facing InvalidQueryError.
+    with pytest.raises(InvalidQueryError) as exc:
         backend.run_user_sql("SELECT * FROM read_csv('/etc/passwd')")
-    assert not isinstance(exc.value, InvalidQueryError) or "external" not in str(exc.value)
+    assert "disabled" in str(exc.value)
+
+
+def test_engine_error_messages_reach_the_caller(backend):
+    # DuckDB binder/catalog errors carry self-correction hints ("Candidate bindings",
+    # "Did you mean") — they must surface as InvalidQueryError, not a generic internal
+    # error, so an LLM caller can fix its SQL and retry.
+    with pytest.raises(InvalidQueryError) as exc:
+        backend.run_user_sql("SELECT no_such_column FROM index")
+    assert "no_such_column" in str(exc.value)
+
+    with pytest.raises(InvalidQueryError) as exc:
+        backend.run_user_sql("SELECT * FROM analysis_results")
+    assert "Did you mean" in str(exc.value)
 
 
 def test_row_cap_truncates(backend):
