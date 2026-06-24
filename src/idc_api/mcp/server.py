@@ -43,7 +43,9 @@ Work this way:
    DICOM Modality they detail — seg_index: what anatomy a SEG segments; ct/mr/pt_index:
    acquisition; sm/ann: microscopy; …). If a property isn't in list_attributes (e.g.
    segmented anatomy), check list_tables before concluding it's unavailable. For clinical
-   (non-imaging) attributes — staging, demographics, therapy — use list_clinical_tables.
+   (non-imaging) attributes — staging, demographics, therapy — use list_clinical_tables, then
+   get_clinical_table_schema / get_clinical_table to read the rows (or run_sql against
+   `clinical.<table>`).
 3. IDC is large (100+ TB) — always report counts/size_TB and warn before any download.
    download_cohort transfers files only when the server runs locally; otherwise use
    get_cohort_urls / the returned `idc` commands.
