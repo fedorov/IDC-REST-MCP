@@ -112,6 +112,20 @@ class TableList(BaseModel):
     tables: list[TableInfo]
 
 
+class ClinicalTableInfo(BaseModel):
+    """A per-collection clinical data table (e.g. ``nlst_canc``), queryable in SQL as
+    ``clinical.<table_name>`` and joinable to ``index`` on ``dicom_patient_id = PatientID``."""
+
+    table_name: str = Field(..., description="Short table name; query as clinical.<table_name>.")
+    collection_id: str = Field(..., description="Collection this clinical table belongs to.")
+    column_count: int = Field(..., description="Number of documented columns (from clinical_index).")
+    description: str = ""
+
+
+class ClinicalTableList(BaseModel):
+    tables: list[ClinicalTableInfo]
+
+
 # --- cohort / manifest --------------------------------------------------------------------
 
 

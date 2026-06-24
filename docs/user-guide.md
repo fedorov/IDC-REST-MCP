@@ -154,6 +154,45 @@ GROUP BY 1 ORDER BY slides DESC
 > BigQuery. Note: `seg_index`'s multi-valued code columns are aggregated independently, so
 > positional correspondence between them is not preserved.
 
+### Clinical (non-imaging) data
+
+Many collections ship **clinical** data — demographics, diagnoses, cancer staging, therapies,
+labs, outcomes — alongside the images. It comes in two layers:
+
+- **`clinical_index`** — a *data dictionary*: one row per (collection, table, column) with a
+  human-readable `column_label` and an array of coded `values` (`option_code` →
+  `option_description`). Use it to discover *what* clinical attributes a collection has and what
+  their codes mean. It's a normal table — query it with `run_sql` (it joins to `index` on
+  `collection_id`).
+- **Per-collection clinical tables** (e.g. `nlst_canc`) — the actual clinical rows. These are
+  registered under a separate **`clinical` schema** and queried as `clinical.<table>`. They are
+  kept out of `list_tables` (there are ~150 of them) and discovered with dedicated capabilities
+  instead. Each joins to imaging on **`dicom_patient_id = index.PatientID`** (not
+  `SeriesInstanceUID`). Clinical data is *not harmonized* across collections — table and column
+  names vary, so always discover before querying.
+
+| Capability | REST | MCP |
+|---|---|---|
+| List clinical tables (optionally for one collection) | `GET /v3/clinical/tables[?collection_id=…]` | `list_clinical_tables` |
+| Columns + human-readable labels of a clinical table | `GET /v3/clinical/tables/{table}` | `get_clinical_table_schema` |
+| Read a clinical table's rows (capped) | `GET /v3/clinical/tables/{table}/rows` | `get_clinical_table` |
+
+For relational questions — filtering by a clinical attribute, or joining clinical data to
+imaging — use `run_sql` against `clinical.<table>`. For example, *"NLST patients imaged with CT
+whose cancer is stage IV (code `400`)"*:
+
+```sql
+SELECT count(DISTINCT i.PatientID) AS patients
+FROM index i
+JOIN clinical.nlst_canc c ON c.dicom_patient_id = i.PatientID
+WHERE i.collection_id = 'nlst' AND i.Modality = 'CT'
+  AND c.clinical_stag = '400'
+```
+
+> Clinical tables exist only when `clinical_index` is included in the build (the default
+> `IDC_API_INCLUDE_INDICES=all` includes it; the clinical tools return a clear "not included"
+> error otherwise).
+
 ---
 
 ## 2. Using the REST API
@@ -177,6 +216,9 @@ uv run idc-api          # http://127.0.0.1:8000  — Swagger UI at /docs
 | `GET /v3/attributes/{attr}/values?limit=` | Distinct values + counts for an attribute, plus a `note` caveat when one applies (e.g. `BodyPartExamined` ≠ segmented anatomy) |
 | `GET /v3/tables` | Tables available to SQL |
 | `GET /v3/tables/{table}` | Column schema for a table |
+| `GET /v3/clinical/tables?collection_id=` | Per-collection clinical tables (optionally one collection) |
+| `GET /v3/clinical/tables/{table}` | Clinical table columns + human-readable labels |
+| `GET /v3/clinical/tables/{table}/rows?max_rows=` | Clinical table rows (capped) |
 | `POST /v3/cohort/counts` | Distinct counts for a filter (cheap) |
 | `POST /v3/cohort/manifest` | Counts + a page of series + download payload |
 | `POST /v3/cohort/manifest.txt` | Full manifest as `text/plain` (`s3://` or `gs://`) |
@@ -252,6 +294,7 @@ uv run idc-mcp --http --host 0.0.0.0 --port 8080     # hosted/shared (manifests 
 - **Discovery:** `get_idc_version`, `get_stats`, `list_collections`, `get_collection`,
   `list_analysis_results`, `list_attributes`, `get_attribute_values`
 - **Schema (for SQL):** `list_tables`, `get_table_schema`
+- **Clinical data:** `list_clinical_tables`, `get_clinical_table_schema`, `get_clinical_table`
 - **Cohort / query:** `build_cohort`, `run_sql`
 - **Retrieval & side tools:** `get_cohort_urls`, `download_cohort`, `get_viewer_url`,
   `get_citations`, `get_licenses`

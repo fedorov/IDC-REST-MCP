@@ -171,6 +171,16 @@ To expose a *new* index that idc-index adds later: add its name to `schema.SPECI
 access. Optionally add targeted service methods/tools for common joins (e.g. CT acquisition
 parameters).
 
+**Clinical data tables are a special case.** Fetching `clinical_index` also downloads ~150
+per-collection clinical *data* tables (e.g. `nlst_canc`). These have no `INDEX_METADATA` schema
+and would swamp `list_tables`, so `build_database_file` registers them under a dedicated
+`clinical` schema (`schema.CLINICAL_SCHEMA`) via `_register_clinical_tables`, *excluded* from
+`backend.list_tables()` (which reads only the `main` schema) and surfaced separately by
+`backend.list_clinical_tables()`. `ClinicalService` drives discovery from `clinical_index` and
+reads tables as `clinical.<table>`; they join to `index` on `dicom_patient_id = PatientID`. When
+the build shape changes like this, bump `duckdb_backend._BUILD_REVISION` so stale cache files
+aren't reused.
+
 ## Walkthrough: add the BigQuery backend (Phase 3)
 
 1. Create `core/backend/bigquery_backend.py` implementing `QueryBackend` (`list_tables`,

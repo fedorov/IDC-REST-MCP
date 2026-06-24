@@ -7,6 +7,7 @@ from ..settings import Settings, get_settings
 from .backend.duckdb_backend import DuckDBBackend
 from .services import (
     CitationsService,
+    ClinicalService,
     CohortService,
     DiscoveryService,
     DownloadService,
@@ -25,6 +26,7 @@ class AppContext:
         self.cohort = CohortService(self.backend, self.settings)
         self.manifest = ManifestService(self.backend, self.settings)
         self.query = QueryService(self.backend, self.settings)
+        self.clinical = ClinicalService(self.backend, self.settings)
         self.viewer = ViewerService(self.backend)
         self.citations = CitationsService(self.backend)
         self.licenses = LicenseService(self.backend)

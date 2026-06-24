@@ -42,7 +42,8 @@ Work this way:
    DuckDB; `index` plus specialized indices joined on SeriesInstanceUID and named for the
    DICOM Modality they detail — seg_index: what anatomy a SEG segments; ct/mr/pt_index:
    acquisition; sm/ann: microscopy; …). If a property isn't in list_attributes (e.g.
-   segmented anatomy), check list_tables before concluding it's unavailable.
+   segmented anatomy), check list_tables before concluding it's unavailable. For clinical
+   (non-imaging) attributes — staging, demographics, therapy — use list_clinical_tables.
 3. IDC is large (100+ TB) — always report counts/size_TB and warn before any download.
    download_cohort transfers files only when the server runs locally; otherwise use
    get_cohort_urls / the returned `idc` commands.
@@ -193,7 +194,9 @@ def list_tables() -> dict:
     Modality they describe (seg_index: segmented anatomy of SEG series; ct/mr/pt_index:
     acquisition parameters; sm/ann: microscopy) plus contrast/volume_geometry/clinical.
     Call this before writing SQL, and whenever a property you need (e.g. what a segmentation
-    contains) is not a filterable attribute — it may live in a specialized index."""
+    contains) is not a filterable attribute — it may live in a specialized index. Per-collection
+    clinical data tables are listed separately by list_clinical_tables (queried as
+    `clinical.<table>`), not here."""
     return ctx.query.list_tables().model_dump(mode="json")
 
 
@@ -203,6 +206,40 @@ def get_table_schema(table: str) -> dict:
     """Return the columns (name, type, description) of a table. Call this before run_sql to
     use correct column names. Use table='index' for the main series-level table."""
     return ctx.query.get_table_schema(table).model_dump(mode="json")
+
+
+# --- clinical data ------------------------------------------------------------------------
+
+
+@mcp.tool()
+@guard
+def list_clinical_tables(collection_id: str | None = None) -> dict:
+    """Discover the per-collection clinical (non-imaging) data tables — demographics, diagnoses,
+    cancer staging, therapies, labs, outcomes. Call this before querying any clinical attribute:
+    clinical data is NOT a filterable attribute and is not harmonized across collections, so the
+    table and column names vary per collection. Pass `collection_id` to narrow to one collection.
+    Each table is queryable in run_sql as `clinical.<table_name>` and joins to `index` on
+    dicom_patient_id = index.PatientID. (For *what columns mean*, also see the `clinical_index`
+    dictionary table.)"""
+    return ctx.clinical.list_clinical_tables(collection_id=collection_id).model_dump(mode="json")
+
+
+@mcp.tool()
+@guard
+def get_clinical_table_schema(table: str) -> dict:
+    """Return the columns of a clinical table (name, DuckDB type, and a human-readable label
+    from clinical_index — clinical column names are often cryptic). Call this before run_sql or
+    get_clinical_table. Get the table name from list_clinical_tables."""
+    return ctx.clinical.get_clinical_table_schema(table).model_dump(mode="json")
+
+
+@mcp.tool()
+@guard
+def get_clinical_table(table: str, max_rows: int = 100) -> dict:
+    """Return the rows of a clinical table (capped at max_rows). Use to inspect a small clinical
+    table directly; for filtering by clinical attributes or joining to imaging, use run_sql
+    against `clinical.<table>` instead. Get the table name from list_clinical_tables."""
+    return ctx.clinical.get_clinical_table(table, max_rows=max_rows).model_dump(mode="json")
 
 
 # --- cohort / query -----------------------------------------------------------------------
@@ -236,7 +273,9 @@ def run_sql(sql: str, max_rows: int = 100) -> dict:
     aggregations, filters on columns that exist only in a specialized index — e.g. segmented
     anatomy in seg_index). Only a single read-only SELECT/WITH statement is allowed; the
     connection is sandboxed (no writes, no file/network access). Call list_tables /
-    get_table_schema first to use correct table and column names. The main table is `index`."""
+    get_table_schema first to use correct table and column names. The main table is `index`.
+    Per-collection clinical tables are in the `clinical` schema (query as `clinical.<table>`,
+    discover via list_clinical_tables) and join to index on dicom_patient_id = index.PatientID."""
     return ctx.query.run_sql(sql, max_rows=max_rows).model_dump(mode="json")
 
 
@@ -355,6 +394,8 @@ not nested under one). The main table is `index` (one row per *series*). IDC is 
 - *Retrieval* (`get_cohort_urls`, `download_cohort`) — the download half: public URLs / files.
 - *SQL* (`list_tables`, `get_table_schema`, `run_sql`) — the escape hatch for anything
   `build_cohort` can't express (GROUP BY, joins, custom aggregations).
+- *Clinical* (`list_clinical_tables`, `get_clinical_table_schema`, `get_clinical_table`) —
+  discover and read per-collection clinical (non-imaging) data; also queryable via `run_sql`.
 - *Side tools* (`get_viewer_url`, `get_citations`, `get_licenses`) — view / cite / license-check
   a cohort.
 
@@ -398,6 +439,19 @@ filtered with `list_contains(seg_index.SegmentedPropertyType_CodeMeanings, 'X')`
 `list_contains(col, 'value')`, not `=` or `LIKE`. Call `get_table_schema(table)` for
 exact columns. Still BigQuery-only: per-individual-segment detail, SR radiomics measurements,
 and private DICOM elements — point the user to `idc-index` + BigQuery for those.
+
+**Clinical (non-imaging) data** comes in two layers. `clinical_index` is a *dictionary*: one row
+per (collection, table, column) with a human-readable `column_label` and an array of coded
+`values` — use it to find *what* clinical attributes exist and what their codes mean. The actual
+clinical rows live in per-collection tables (e.g. `nlst_canc`) registered under the `clinical`
+schema, queried as `clinical.<table>` and joined to imaging on `dicom_patient_id =
+index.PatientID` (NOT SeriesInstanceUID). Clinical data is not a filterable attribute and is not
+harmonized across collections, so always discover with `list_clinical_tables` /
+`get_clinical_table_schema` (or query `clinical_index`) before writing clinical SQL — e.g.
+"NLST patients imaged with CT whose cancer is stage IV" is
+`index JOIN clinical.nlst_canc ON index.PatientID = clinical.nlst_canc.dicom_patient_id`
+filtered on the relevant staging column. Use `get_clinical_table` to read a whole small table.
+These tables are present only when `clinical_index` is included in the build.
 """
 
 

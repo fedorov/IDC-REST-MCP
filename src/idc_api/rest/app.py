@@ -20,6 +20,7 @@ from ..core.models import (
     AttributeInfo,
     AttributeValues,
     CitationsResult,
+    ClinicalTableList,
     CohortCounts,
     CohortFilters,
     CollectionDetail,
@@ -175,6 +176,29 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
     @app.get(f"{API_PREFIX}/tables/{{table}}", response_model=TableSchema, tags=["query"])
     def table_schema(table: str):
         return C().query.get_table_schema(table)
+
+    # --- clinical data ---
+    @app.get(
+        f"{API_PREFIX}/clinical/tables", response_model=ClinicalTableList, tags=["clinical"]
+    )
+    def clinical_tables(collection_id: str | None = Query(None)):
+        return C().clinical.list_clinical_tables(collection_id=collection_id)
+
+    @app.get(
+        f"{API_PREFIX}/clinical/tables/{{table}}",
+        response_model=TableSchema,
+        tags=["clinical"],
+    )
+    def clinical_table_schema(table: str):
+        return C().clinical.get_clinical_table_schema(table)
+
+    @app.get(
+        f"{API_PREFIX}/clinical/tables/{{table}}/rows",
+        response_model=SqlResult,
+        tags=["clinical"],
+    )
+    def clinical_table_rows(table: str, max_rows: int | None = Query(None, ge=1, le=100000)):
+        return C().clinical.get_clinical_table(table, max_rows=max_rows)
 
     # --- cohort / manifest ---
     @app.post(f"{API_PREFIX}/cohort/counts", response_model=CohortCounts, tags=["cohort"])

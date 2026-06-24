@@ -9,6 +9,10 @@ package, so they need no downloads beyond installing it; SPECIALIZED ones (ct/mr
 sm, clinical, …) are not in the package and are *fetched* from idc-index releases at build time
 (see ``IDC_API_INCLUDE_INDICES`` and ``duckdb_backend.build_database_file``). Schemas for both
 are bundled, so schema discovery works for a specialized table even before its data is fetched.
+
+Including ``clinical_index`` additionally registers the per-collection clinical *data* tables
+under the ``clinical`` schema (see ``CLINICAL_SCHEMA`` and ``duckdb_backend``); those are
+discovered via the clinical service rather than this registry.
 """
 
 from __future__ import annotations
@@ -54,6 +58,13 @@ SPECIALIZED_TABLES: dict[str, str] = {
 ALL_TABLES: dict[str, str] = {**BUNDLED_TABLES, **SPECIALIZED_TABLES}
 
 MAIN_TABLE = "index"
+
+# Per-collection clinical *data* tables (the actual clinical rows, e.g. ``nlst_canc``) are
+# registered under this DuckDB schema and queried as ``clinical.<table>``. They are kept out of
+# the main catalog (``list_tables``) and discovered via the clinical tools instead; they exist
+# only when ``clinical_index`` is included in the build, and join to ``index`` on
+# ``dicom_patient_id = PatientID``. See ``duckdb_backend._register_clinical_tables``.
+CLINICAL_SCHEMA = "clinical"
 
 
 def metadata_key(table: str) -> str:

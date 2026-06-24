@@ -34,6 +34,11 @@ class QueryBackend(abc.ABC):
     def list_tables(self) -> list[str]:
         """Names of queryable tables."""
 
+    def list_clinical_tables(self) -> list[str]:  # pragma: no cover - trivial default
+        """Names of per-collection clinical data tables (in the backend's ``clinical``
+        namespace), or ``[]`` if this build/backend has no clinical data."""
+        return []
+
     @abc.abstractmethod
     def query(
         self,

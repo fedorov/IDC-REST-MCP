@@ -37,6 +37,16 @@ from .base import QueryBackend, QueryResult
 # lock_configuration MUST be last — it freezes everything above it.
 _LEADING_KEYWORD_RE = re.compile(r"^(select|with)\b", re.IGNORECASE)
 
+# Schema name the per-collection clinical data tables are registered under (defined in
+# ``schema`` as the naming source of truth), keeping the main catalog (``list_tables``)
+# index-focused while ``run_sql`` can still reach ``clinical.<table>``.
+CLINICAL_SCHEMA = schema.CLINICAL_SCHEMA
+
+# Bumped when the *shape* of the built DuckDB file changes in a way the data-version + include
+# token don't capture (e.g. adding the clinical schema). Folded into the cache filename so a
+# stale file built by older code is not reused. Bump on any such structural change.
+_BUILD_REVISION = 2
+
 
 def _strip_sql_comments(sql: str) -> str:
     sql = re.sub(r"/\*.*?\*/", " ", sql, flags=re.DOTALL)  # /* block */
@@ -73,15 +83,21 @@ def _jsonify(value: Any) -> Any:
     return value
 
 
-def _fetch_specialized_parquets(names: list[str]) -> dict[str, str]:
+def _fetch_specialized_parquets(names: list[str]) -> tuple[dict[str, str], str | None]:
     """Download (via idc-index) the Parquet for each specialized table, returning
-    ``{table_name: local_parquet_path}``. Requires network; raises a clear error on failure.
+    ``({table_name: local_parquet_path}, clinical_dir)``. Requires network; raises a clear
+    error on failure.
+
+    ``clinical_dir`` is the local directory of per-collection clinical data tables that
+    idc-index downloads as a side effect of ``fetch_index('clinical_index')`` (or ``None`` if
+    ``clinical_index`` was not requested). It is registered separately as the ``clinical``
+    schema by ``_register_clinical_tables``.
 
     idc-index is imported lazily and a single client is reused for all fetches (instantiating
     it loads the main index once), so the serving path never pays for the heavier client.
     """
     if not names:
-        return {}
+        return {}, None
     try:
         from idc_index import IDCClient
     except Exception as exc:  # pragma: no cover - idc-index is a hard dependency
@@ -105,7 +121,14 @@ def _fetch_specialized_parquets(names: list[str]) -> dict[str, str]:
                 f"fetch; cannot include it."
             )
         paths[name] = fp
-    return paths
+    # fetch_index('clinical_index') also downloads the per-collection clinical data tables into
+    # client.clinical_data_dir; surface it so build_database_file can register them.
+    clinical_dir = None
+    if "clinical_index" in names:
+        cd = getattr(client, "clinical_data_dir", None)
+        if cd and Path(cd).is_dir():
+            clinical_dir = str(cd)
+    return paths, clinical_dir
 
 
 def build_database_file(path: str, specialized: list[str] | None = None) -> None:
@@ -119,7 +142,7 @@ def build_database_file(path: str, specialized: list[str] | None = None) -> None
     """
     if specialized is None:
         specialized = schema.specialized_table_names()
-    fetched = _fetch_specialized_parquets(specialized)
+    fetched, clinical_dir = _fetch_specialized_parquets(specialized)
 
     con = duckdb.connect(path)
     try:
@@ -133,8 +156,41 @@ def build_database_file(path: str, specialized: list[str] | None = None) -> None
                 f'CREATE TABLE "{table}" AS SELECT * FROM read_parquet(?)',
                 [parquet],
             )
+        if clinical_dir:
+            _register_clinical_tables(con, clinical_dir)
     finally:
         con.close()
+
+
+# A clinical table name is a directory under clinical_data_dir; these come from IDC, but we
+# still constrain them to a safe identifier shape before interpolating into DDL (we cannot bind
+# an identifier as a parameter) — anything else is skipped rather than trusted.
+_CLINICAL_TABLE_NAME_RE = re.compile(r"^[A-Za-z0-9_]+$")
+
+
+def _register_clinical_tables(con: "duckdb.DuckDBPyConnection", clinical_dir: str) -> None:
+    """Register each per-collection clinical data table under the ``clinical`` schema.
+
+    idc-index lays the tables out as ``<clinical_dir>/<short_table_name>/*.parquet``. We
+    materialize each into ``clinical."<name>"`` via CREATE TABLE AS SELECT (copying the rows
+    into the DuckDB file, like the specialized tables), so the read-only serving connection
+    never needs the Parquet directory. These tables join to the main ``index`` on
+    ``dicom_patient_id = index.PatientID``.
+    """
+    con.execute(f'CREATE SCHEMA IF NOT EXISTS "{CLINICAL_SCHEMA}"')
+    for entry in sorted(Path(clinical_dir).iterdir()):
+        if not entry.is_dir():
+            continue
+        name = entry.name
+        if not _CLINICAL_TABLE_NAME_RE.match(name):
+            continue
+        if not any(entry.glob("*.parquet")):
+            continue
+        glob = str(entry / "*.parquet")
+        con.execute(
+            f'CREATE TABLE "{CLINICAL_SCHEMA}"."{name}" AS SELECT * FROM read_parquet(?)',
+            [glob],
+        )
 
 
 class DuckDBBackend(QueryBackend):
@@ -149,6 +205,10 @@ class DuckDBBackend(QueryBackend):
         # Reflect exactly what was built into this file (bundled + whichever specialized
         # indices were included), in registry order. Computed once — tables never change.
         self._table_names = self._catalog_table_names()
+        # Per-collection clinical data tables live in the ``clinical`` schema (present only when
+        # clinical_index was included). Kept separate from _table_names so list_tables stays
+        # index-focused; surfaced via list_clinical_tables for the clinical discovery tools.
+        self._clinical_table_names = self._catalog_clinical_table_names()
 
     # --- construction ---------------------------------------------------------------------
     def _ensure_database(self) -> str:
@@ -163,7 +223,7 @@ class DuckDBBackend(QueryBackend):
         token = schema.include_token(included)
         cache = (
             Path(tempfile.gettempdir())
-            / f"idc_api_v3_{idc_index_data.__version__}_{token}.duckdb"
+            / f"idc_api_v3_{idc_index_data.__version__}_{token}_r{_BUILD_REVISION}.duckdb"
         )
         if cache.exists():
             return str(cache)
@@ -186,6 +246,16 @@ class DuckDBBackend(QueryBackend):
         ordered = [t for t in schema.registered_table_names() if t in present]
         ordered += sorted(present - set(ordered))  # any unexpected tables, deterministically
         return ordered
+
+    def _catalog_clinical_table_names(self) -> list[str]:
+        """Per-collection clinical data tables present in the ``clinical`` schema, sorted.
+        Empty when clinical_index wasn't included in this build."""
+        cur = self._con.cursor()
+        cur.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = ?",
+            [CLINICAL_SCHEMA],
+        )
+        return sorted(r[0] for r in cur.fetchall())
 
     def _hardening_config(self) -> dict[str, str]:
         """DuckDB settings for running untrusted SQL (https://duckdb.org/docs/stable/
@@ -244,6 +314,9 @@ class DuckDBBackend(QueryBackend):
     # --- QueryBackend ---------------------------------------------------------------------
     def list_tables(self) -> list[str]:
         return list(self._table_names)
+
+    def list_clinical_tables(self) -> list[str]:
+        return list(self._clinical_table_names)
 
     def query(
         self,

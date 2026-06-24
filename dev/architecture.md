@@ -75,6 +75,7 @@ Pydantic models:
 | `DiscoveryService` | [discovery.py](../src/idc_api/core/services/discovery.py) | version, stats, collections, analysis results, attributes, attribute values |
 | `CohortService` | [cohort.py](../src/idc_api/core/services/cohort.py) | filters → counts + page of series + download payload |
 | `QueryService` | [query.py](../src/idc_api/core/services/query.py) | schema discovery + guarded `run_sql` |
+| `ClinicalService` | [clinical.py](../src/idc_api/core/services/clinical.py) | discover + read per-collection clinical data tables (the `clinical` schema) |
 | `ManifestService` | [manifest.py](../src/idc_api/core/services/manifest.py) | public AWS/GCS URLs, manifest text, `idc` commands |
 | `ViewerService` | [viewer.py](../src/idc_api/core/services/viewer.py) | OHIF/SLIM viewer URLs |
 | `CitationsService` | [citations.py](../src/idc_api/core/services/citations.py) | DOI-based citations |

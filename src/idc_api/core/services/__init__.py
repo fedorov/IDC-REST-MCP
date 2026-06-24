@@ -5,6 +5,7 @@ adapters call these and never touch SQL or the backend directly.
 """
 
 from .citations import CitationsService
+from .clinical import ClinicalService
 from .cohort import CohortService
 from .discovery import DiscoveryService
 from .download import DownloadService
@@ -15,6 +16,7 @@ from .viewer import ViewerService
 
 __all__ = [
     "CitationsService",
+    "ClinicalService",
     "CohortService",
     "DiscoveryService",
     "DownloadService",

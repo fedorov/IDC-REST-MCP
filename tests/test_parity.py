@@ -5,6 +5,8 @@ This is the guarantee that the two adapters stay in sync because they share one 
 
 from __future__ import annotations
 
+import pytest
+
 from idc_api.core.models import CohortFilters
 from idc_api.mcp.server import mcp
 
@@ -52,3 +54,21 @@ async def test_citations_parity_and_idc_acknowledgment(ctx, client, parse_mcp, m
     assert core["idc_acknowledgment"] == "FAKE CITATION"
     assert core["citations"]  # per-dataset citations present, distinct from idc_acknowledgment
     assert "10.1148/rg.230180" in core["recommendation"]
+
+
+async def test_clinical_parity(ctx, client, parse_mcp):
+    """list_clinical_tables and get_clinical_table agree across core, REST, and MCP."""
+    registered = ctx.backend.list_clinical_tables()
+    if not registered:
+        pytest.skip("clinical data not included in this build")
+
+    core_list = ctx.clinical.list_clinical_tables().model_dump(mode="json")
+    rest_list = client.get("/v3/clinical/tables").json()
+    mcp_list = parse_mcp(await mcp.call_tool("list_clinical_tables", {}))
+    assert core_list == rest_list == mcp_list
+
+    table = sorted(registered)[0]
+    core_rows = ctx.clinical.get_clinical_table(table, max_rows=5).model_dump(mode="json")
+    rest_rows = client.get(f"/v3/clinical/tables/{table}/rows?max_rows=5").json()
+    mcp_rows = parse_mcp(await mcp.call_tool("get_clinical_table", {"table": table, "max_rows": 5}))
+    assert core_rows == rest_rows == mcp_rows
