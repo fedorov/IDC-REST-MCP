@@ -24,7 +24,12 @@ class Settings(BaseSettings):
     include_indices: str = "all"
 
     # --- Guarded SQL tool ---
-    sql_max_rows: int = 5000
+    sql_max_rows: int = 5000  # default row cap when a caller does not specify max_rows
+    # Hard ceiling on run_sql max_rows: a caller-supplied max_rows is silently clamped to this
+    # so a single query can never dump an unbounded result into the caller's (LLM) context. The
+    # `truncated` flag still signals that the result was capped. Raise only if a deployment needs
+    # genuinely larger raw exports (memory_limit / timeout remain the other backstops).
+    sql_max_rows_cap: int = 10000
     sql_timeout_seconds: float = 30.0
 
     # --- Cohort / manifest ---

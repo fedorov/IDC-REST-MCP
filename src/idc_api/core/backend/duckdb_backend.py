@@ -338,6 +338,9 @@ class DuckDBBackend(QueryBackend):
     ) -> QueryResult:
         self._validate_select(sql)
         max_rows = max_rows if max_rows is not None else self._settings.sql_max_rows
+        # Hard ceiling: clamp so a caller can never request an unbounded result dump. The
+        # `truncated` flag (and the echoed max_rows) still tell the caller the result was capped.
+        max_rows = max(1, min(int(max_rows), self._settings.sql_max_rows_cap))
         timeout_s = timeout_s if timeout_s is not None else self._settings.sql_timeout_seconds
         inner = _strip_sql_comments(sql).strip().rstrip(";").strip()
         # Engine-level row cap: wrap and fetch one extra row to detect truncation. The

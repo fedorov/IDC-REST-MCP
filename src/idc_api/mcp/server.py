@@ -181,7 +181,11 @@ def list_attributes() -> list[dict]:
 def get_attribute_values(attribute: str, limit: int = 50) -> dict:
     """Return the distinct values (with counts) of a categorical attribute on the `index`
     table, e.g. attribute='Modality' or 'BodyPartExamined'. ALWAYS call this before
-    filtering by an attribute so you use real values and correct casing — do not guess."""
+    filtering by an attribute so you use real values and correct casing — do not guess.
+    Keep `limit` small while exploring; the result carries a `truncated` flag — if true you did
+    NOT get every distinct value, so raise `limit` and re-check. `limit` is capped server-side
+    (so a large value returns all values for any realistic categorical attribute); a
+    `truncated=false` response means you have the complete list."""
     return ctx.discovery.get_attribute_values(attribute, limit=limit).model_dump(mode="json")
 
 
@@ -277,7 +281,14 @@ def run_sql(sql: str, max_rows: int = 100) -> dict:
     connection is sandboxed (no writes, no file/network access). Call list_tables /
     get_table_schema first to use correct table and column names. The main table is `index`.
     Per-collection clinical tables are in the `clinical` schema (query as `clinical.<table>`,
-    discover via list_clinical_tables) and join to index on dicom_patient_id = index.PatientID."""
+    discover via list_clinical_tables) and join to index on dicom_patient_id = index.PatientID.
+    Keep `max_rows` small while exploring (e.g. to peek at a few rows or confirm a query is
+    right) and raise it only once you actually need the full result — large results bloat the
+    response. Prefer aggregating in SQL (COUNT/GROUP BY) over fetching many raw rows. The result
+    carries a `truncated` flag: if true you did NOT get every row — narrow/aggregate the query,
+    or raise `max_rows` and re-check the flag (it is the only reliable 'is this complete?'
+    signal). `max_rows` is clamped to a server ceiling, so there is no 'unbounded' value; for
+    bulk series use build_cohort / get_cohort_urls instead of dumping rows here."""
     return ctx.query.run_sql(sql, max_rows=max_rows).model_dump(mode="json")
 
 
@@ -414,6 +425,13 @@ its payload — so a typical request flows Discovery → Cohort → Retrieval, w
    in a specialized index — see *Tables for run_sql* below.
 3. *Build:* `build_cohort(terms={...}, ranges={...})` → counts, sample series, download payload.
    For complex queries: `list_tables` → `get_table_schema('index')` → `run_sql('SELECT ...')`.
+   *Explore narrow, then widen:* keep result sizes small while you're still figuring out the
+   query (small `max_rows` / `limit` / `page_size`, or COUNT/GROUP BY instead of raw rows), and
+   only raise the limit once you know you need the full set — large responses waste context.
+   *How to tell you got everything:* size-capped responses carry a `truncated` flag —
+   `truncated=false` means the result is complete; `true` means raise the limit and re-check (or
+   narrow/aggregate). `run_sql`'s `max_rows` is clamped to a server ceiling, so there is no
+   'unlimited' value — for bulk *series* use the cohort/manifest tools, not raw `run_sql` rows.
 4. *Get the data:* `get_cohort_urls` returns public s3:///gs:// URLs; the `build_cohort`
    response also includes ready-to-run `idc` CLI commands. `download_cohort` performs a real
    local download only when the server runs on your machine.

@@ -108,6 +108,18 @@ locally), and **be a good citizen** — check `licenses` (CC BY vs CC BY-NC) and
 > dataset, but it can't scope a relational question — skip it and go to SQL when you already
 > know what you're joining.
 
+> **Explore narrow, then widen.** While you're still figuring out a query, keep result sizes
+> small — a low `max_rows` / `limit` / `page_size`, or a COUNT/GROUP BY instead of fetching raw
+> rows — and raise the limit only once you know you need the full set. Every tool caps output by
+> default and flags truncation, so a peek stays cheap; large unfiltered results mostly just waste
+> the agent's context.
+>
+> **Knowing you got it all.** Size-capped responses include a `truncated` boolean:
+> `truncated: false` means the result is complete; `true` means raise the limit and re-check (or
+> narrow/aggregate). `run_sql`'s `max_rows` is clamped to a server ceiling (`SQL_MAX_ROWS_CAP`),
+> so there is no "unlimited" value — for bulk *series*, use the cohort/manifest tools rather than
+> dumping rows through `run_sql`.
+
 ### What you can query (tables available to SQL)
 
 `run_sql` / `list_tables` can reach the **bundled** tables plus the **specialized** indices,
@@ -421,7 +433,8 @@ Environment variables (prefix `IDC_API_`):
 |---|---|---|
 | `DUCKDB_PATH` | (built on first run) | Path to the read-only DuckDB file |
 | `INCLUDE_INDICES` | `all` | Specialized indices to build in: `all`, `none` (bundled only, fully offline), or a comma list (e.g. `seg_index,ct_index`). Ignored when `DUCKDB_PATH` is set. |
-| `SQL_MAX_ROWS` | `5000` | Max rows returned by `run_sql` |
+| `SQL_MAX_ROWS` | `5000` | Default rows returned by `run_sql` when the caller omits `max_rows` |
+| `SQL_MAX_ROWS_CAP` | `10000` | Hard ceiling: a caller-supplied `max_rows` is clamped to this, so no query can dump an unbounded result. The `truncated` flag still signals a capped result |
 | `SQL_TIMEOUT_SECONDS` | `30` | Per-query timeout for `run_sql` |
 | `DEFAULT_PAGE_SIZE` | `100` | Default `cohort/manifest` page size |
 | `MAX_PAGE_SIZE` | `5000` | Upper bound on page size |

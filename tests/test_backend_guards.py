@@ -67,6 +67,18 @@ def test_row_cap_truncates(backend):
     assert res.truncated is True
 
 
+def test_max_rows_clamped_to_ceiling():
+    # A caller-supplied max_rows above the hard ceiling is silently clamped, so a single query
+    # can never dump an unbounded result; the truncated flag still signals the cap.
+    from idc_api.core.backend.duckdb_backend import DuckDBBackend
+
+    backend = DuckDBBackend(Settings(sql_max_rows=50, sql_max_rows_cap=20))
+    res = backend.run_user_sql("SELECT SeriesInstanceUID FROM index", max_rows=10_000_000)
+    assert res.row_count == 20
+    assert res.max_rows == 20
+    assert res.truncated is True
+
+
 def test_statement_timeout(backend):
     t0 = time.time()
     with pytest.raises(QueryTimeoutError):
