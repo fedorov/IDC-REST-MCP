@@ -134,10 +134,29 @@ def _column_type(c: dict) -> str:
     return f"{t}[]" if c.get("mode") == "REPEATED" else t
 
 
+# Local overrides for upstream idc-index-data *table* descriptions. Use ONLY for surface-routing
+# guidance the upstream text gets wrong for an in-MCP client — same philosophy as the attribute
+# ``note`` above. clinical_index's upstream description points retrieval at the external idc-index
+# ``get_clinical_table()`` Python function, which is NOT reachable from this MCP; we repoint it at
+# the in-MCP path (list_clinical_tables / run_sql against ``clinical.<table>``) and flag that those
+# tables are irregular. Durable facts belong upstream; trim an override once upstream absorbs it.
+TABLE_DESCRIPTION_OVERRIDES: dict[str, str] = {
+    "clinical_index": (
+        "Dictionary (not data) for the per-collection clinical (non-imaging) tables that "
+        "accompany imaging in IDC: one row per collection × clinical table × column. These "
+        "tables do NOT follow the documented index schema and vary per collection. Discover them "
+        "with list_clinical_tables and query each as clinical.<short_table_name> via run_sql "
+        "(join to index on dicom_patient_id = index.PatientID). Use this table's column_label and "
+        "value mappings to interpret their often-cryptic coded columns."
+    ),
+}
+
+
 @lru_cache(maxsize=None)
 def table_schema(table: str) -> dict:
     """Return ``{name, description, columns:[{name,type,description}]}`` for a table,
-    sourced from the idc-index schema JSON shipped in INDEX_METADATA."""
+    sourced from the idc-index schema JSON shipped in INDEX_METADATA (table descriptions may be
+    repointed inward via ``TABLE_DESCRIPTION_OVERRIDES``)."""
     meta = idc_index_data.INDEX_METADATA[metadata_key(table)]
     schema = meta.get("schema", {}) or {}
     columns = [
@@ -150,7 +169,7 @@ def table_schema(table: str) -> dict:
     ]
     return {
         "name": table,
-        "description": schema.get("table_description", "") or "",
+        "description": TABLE_DESCRIPTION_OVERRIDES.get(table) or schema.get("table_description", "") or "",
         "columns": columns,
     }
 

@@ -80,6 +80,7 @@ class ClinicalService:
         tables = [
             ClinicalTableInfo(
                 table_name=row["short_table_name"],
+                sql_path=f"{schema.CLINICAL_SCHEMA}.{row['short_table_name']}",
                 collection_id=row["collection_id"],
                 column_count=int(row["column_count"]),
             )

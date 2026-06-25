@@ -23,6 +23,19 @@ def _skip_without_clinical(clinical_tables):
         pytest.skip("clinical_index (and its data tables) not included in this build")
 
 
+def test_clinical_index_description_points_inward():
+    # Regression for issue #1 (linchpin): the clinical_index dictionary description must steer a
+    # client to the in-MCP path (list_clinical_tables / run_sql against clinical.<table>), NOT the
+    # external idc-index get_clinical_table() Python function, which is unreachable from the MCP.
+    # Independent of the build (reads upstream metadata + our override), so no clinical-data skip.
+    from idc_api.core import schema
+
+    desc = schema.table_schema("clinical_index")["description"]
+    assert "list_clinical_tables" in desc
+    assert "clinical." in desc  # points at the clinical.<table> query path
+    assert "get_clinical_table" not in desc  # never the external Python function
+
+
 def test_clinical_tables_registered_but_hidden_from_list_tables(ctx, clinical_tables):
     _skip_without_clinical(clinical_tables)
     # Registered and queryable...
@@ -40,6 +53,8 @@ def test_list_clinical_tables_and_collection_filter(ctx, clinical_tables):
     # Every listed table is actually registered (queryable), and counts are populated.
     assert names <= clinical_tables
     assert all(t.column_count > 0 and t.collection_id for t in listing.tables)
+    # sql_path is the ready-to-use run_sql FROM target (issue #1, rec 5) — no reconstruction.
+    assert all(t.sql_path == f"clinical.{t.table_name}" for t in listing.tables)
 
     # Filtering by collection returns only that collection's tables.
     some_collection = listing.tables[0].collection_id
