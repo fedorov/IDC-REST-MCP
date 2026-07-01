@@ -48,6 +48,30 @@ def test_external_file_access_blocked(backend):
     assert "disabled" in str(exc.value)
 
 
+def test_remote_file_access_blocked(backend):
+    # enable_external_access=false blocks network reads too, not just local files.
+    with pytest.raises(InvalidQueryError):
+        backend.run_user_sql("SELECT * FROM read_parquet('s3://example-bucket/x.parquet')")
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "INSTALL httpfs",
+        "LOAD httpfs",
+        "COPY index TO '/tmp/idc_api_test_export.csv'",
+        "SET GLOBAL enable_external_access=true",
+        "PRAGMA enable_external_access=true",
+    ],
+)
+def test_extension_and_export_statements_rejected(backend, sql):
+    # None of these lead with SELECT/WITH, so _validate_select rejects them outright -- this is
+    # the sandbox-escape shape the guard exists to stop (loading httpfs, exporting rows to disk,
+    # or trying to flip the locked-down config back on).
+    with pytest.raises(InvalidQueryError):
+        backend.run_user_sql(sql)
+
+
 def test_engine_error_messages_reach_the_caller(backend):
     # DuckDB binder/catalog errors carry self-correction hints ("Candidate bindings",
     # "Did you mean") — they must surface as InvalidQueryError, not a generic internal
