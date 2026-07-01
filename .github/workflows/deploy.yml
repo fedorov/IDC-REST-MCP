@@ -98,7 +98,7 @@ jobs:
         if: ${{ inputs.target == 'rest' || inputs.target == 'both' }}
         run: |
           URL=$(gcloud run services describe idc-api-v3 --region "${{ inputs.region }}" --format='value(status.url)')
-          curl -sf "$URL/healthz"; echo
+          curl -sf "$URL/health"; echo
           {
             echo "### REST API deployed"
             echo "$URL"

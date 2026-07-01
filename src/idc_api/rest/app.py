@@ -142,8 +142,8 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
             "version_endpoint": f"{API_PREFIX}/version",
         }
 
-    @app.get("/healthz", tags=["meta"])
-    def healthz():
+    @app.get("/health", tags=["meta"])
+    def health():
         return {"status": "ok"}
 
     # --- discovery ---

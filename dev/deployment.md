@@ -113,10 +113,15 @@ signal to watch for "is someone abusing this" before reaching for either.
 
 ```bash
 URL=$(gcloud run services describe idc-api-v3 --region "$REGION" --format='value(status.url)')
-curl -s "$URL/healthz"; echo
+curl -s "$URL/health"; echo
 curl -s "$URL/v3/version"; echo
 open "$URL/docs"   # Swagger UI
 ```
+
+> **Don't use `/healthz` as a health-check path on Cloud Run's default `*.run.app` domain.**
+> Google's front end reserves that exact path and returns its own generic 404 page for it
+> before the request ever reaches your container — a well-known Cloud Run gotcha (other
+> frameworks, e.g. Streamlit, have hit the same thing). The app exposes `/health` instead.
 
 ## 5. Updating for a new IDC release
 
