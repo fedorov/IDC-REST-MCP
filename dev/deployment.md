@@ -19,7 +19,7 @@ Set shimmable variables for the commands below:
 export PROJECT_ID=your-project
 export REGION=us-central1
 export REPO=idc                       # Artifact Registry repo name
-export IMAGE=$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/idc-api:latest
+export IMAGE=$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/idc-api-v3:latest
 gcloud config set project "$PROJECT_ID"
 ```
 
@@ -52,7 +52,7 @@ docker push "$IMAGE"
 ## 3. Deploy the REST API
 
 ```bash
-gcloud run deploy idc-api \
+gcloud run deploy idc-api-v3 \
   --image "$IMAGE" \
   --region "$REGION" \
   --allow-unauthenticated \
@@ -109,7 +109,7 @@ signal to watch for "is someone abusing this" before reaching for either.
 ## 4. Verify
 
 ```bash
-URL=$(gcloud run services describe idc-api --region "$REGION" --format='value(status.url)')
+URL=$(gcloud run services describe idc-api-v3 --region "$REGION" --format='value(status.url)')
 curl -s "$URL/health"; echo
 curl -s "$URL/v3/version"; echo
 open "$URL/docs"   # Swagger UI
@@ -134,7 +134,7 @@ Deploy the same image with the MCP command to expose the tools over MCP streamab
 (download is disabled in hosted mode — manifests/URLs only):
 
 ```bash
-gcloud run deploy idc-mcp \
+gcloud run deploy idc-mcp-v3 \
   --image "$IMAGE" \
   --region "$REGION" \
   --allow-unauthenticated \
