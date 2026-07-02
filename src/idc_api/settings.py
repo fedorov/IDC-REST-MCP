@@ -1,4 +1,4 @@
-"""Runtime configuration for IDC API v3 (env-driven, prefix ``IDC_API_``)."""
+"""Runtime configuration for the IDC API (env-driven, prefix ``IDC_API_``)."""
 
 from __future__ import annotations
 

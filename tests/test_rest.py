@@ -69,5 +69,5 @@ def test_download_disabled_returns_501(client):
 
 def test_openapi_served(client):
     spec = client.get("/openapi.json").json()
-    assert spec["info"]["title"] == "IDC API v3"
+    assert spec["info"]["title"] == "IDC API"
     assert "/v3/cohort/manifest" in spec["paths"]

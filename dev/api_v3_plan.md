@@ -1,20 +1,20 @@
-# IDC API v3 — Design & Implementation Plan
+# IDC API — Design & Implementation Plan
 
 ## Context
 
-The current repo is IDC's v2 REST API: a Flask app that proxies the `canceridc.dev`
-webapp for metadata and forwards generated SQL to **BigQuery**, then rewrites that SQL
-by hand (string surgery in `api/v2/manifest_utils.py`) to inject counts/grouping. Per
-`dev/api_v2_analysis.md`, this is operationally fragile, latency-bound, tightly coupled
-to private webapp internals, ships dead MySQL/SAML weight, and stops at "manifest only"
-(no download). Meanwhile **`idc-index`** answers the same questions in milliseconds from
-local Parquet via DuckDB, and is now the de-facto recommended path for IDC users.
+IDC previously ran an older REST API: a Flask app that proxied a separate webapp for
+metadata and forwarded generated SQL to **BigQuery**, then rewrote that SQL by hand
+(string surgery) to inject counts/grouping. That approach was operationally fragile,
+latency-bound, tightly coupled to private webapp internals, and stopped at "manifest
+only" (no download). Meanwhile **`idc-index`** answers the same questions in
+milliseconds from local Parquet via DuckDB, and is now the de-facto recommended path
+for IDC users.
 
-**Goal:** a greenfield v3 that (a) drops the BigQuery/webapp coupling and SQL-string
-surgery in favor of the `idc-index` Parquet+DuckDB engine, and (b) is designed
-**LLM-first** — built so a hosted REST API and an **IDC MCP server** are two thin
-adapters over one shared core, developed and iterated together. All IDC data is open;
-**no authentication** is required of callers.
+**Goal:** a greenfield service that (a) drops the BigQuery/webapp coupling and
+SQL-string surgery in favor of the `idc-index` Parquet+DuckDB engine, and (b) is
+designed **LLM-first** — built so a hosted REST API and an **IDC MCP server** are two
+thin adapters over one shared core, developed and iterated together. All IDC data is
+open; **no authentication** is required of callers.
 
 ### Decisions locked with the user
 - **Query backend:** `idc-index` Parquet + in-process **DuckDB** for the MVP. Put the
@@ -77,8 +77,7 @@ reuse, rather than rebuild:
   connections aren't thread-safe. Instead `duckdb_backend.py` opens its own **read-only**
   connection over the same Parquet and hands out per-request cursors (see Safety).
 
-This is the opposite of v2's lineage problem: no forked ISB-CGC code, no SQL string
-surgery, no webapp dependency, no shared-secret token.
+No forked code, no SQL string surgery, no webapp dependency, no shared-secret token.
 
 ## MVP capabilities (each = one core service, one REST route, one MCP tool)
 
@@ -87,11 +86,11 @@ surgery, no webapp dependency, no shared-secret token.
 - `list_collections` / `get_collection` — from `collections_index` (cancer_types,
   tumor_locations, species, subjects, supporting_data, license, DOI).
 - `list_analysis_results` — derived datasets (segmentations, annotations, radiomics).
-- `list_attributes` — filterable fields + their table + type (replaces v2 `/filters`).
+- `list_attributes` — filterable fields + their table + type.
 - `get_attribute_values` — distinct values + counts for a categorical field. **Critical
   for LLMs:** lets an agent ground filter values instead of hallucinating them.
 
-**Cohort / manifest** (replaces v2's `/cohorts/manifest/preview`)
+**Cohort / manifest**
 - `build_manifest` — structured filters over core `index` columns → distinct counts at
   patient/study/series level, total size, paginated rows, and the manifest payload.
   Simple attribute→values + a few range filters; complex selection goes through SQL.
@@ -117,7 +116,7 @@ surgery, no webapp dependency, no shared-secret token.
   measurably improves tool selection on current Claude models.
 - **Token-efficient by default** — return counts/summaries + sizes, not 65k-row dumps.
   Default `LIMIT`, cursor pagination, and surface byte sizes so an agent can warn before a
-  TB-scale download. (v2's cap was 65000 rows; keep a hard cap, small default page.)
+  TB-scale download. Keep a hard cap and a small default page size.
 - **Discovery-first ordering** — schema tools + `get_attribute_values` exist so an agent
   grounds queries in real columns/values first (the IDC skill stresses this).
 - **Cross-table discoverability** — a filter-shaped question can secretly be a join: e.g.
@@ -157,7 +156,6 @@ helps when *we* own the query structure and interpolate untrusted *values*.
 1. **Curated tools** (e.g. `build_manifest`, `get_attribute_values`) — we own the query
    shape and interpolate user-supplied filter *values*. Use **parameterized queries**
    (DuckDB prepared statements / bound params), exactly per the OWASP primary defense.
-   v2 already did this for its BigQuery params; we keep that discipline.
 2. **Raw `sql_query` tool** — the caller/LLM supplies the whole statement. Defense is a
    **sandboxed, read-only DuckDB connection**, not input parsing.
 
@@ -207,21 +205,15 @@ general MCP guidance to treat all tool inputs as untrusted and apply defense in 
   `core/` rather than auto-converting REST routes — auto-conversion yields generic,
   poorly-described tools. Same image serves remote MCP (HTTP) next to REST; local MCP runs
   via **stdio** from a `pip install idc-mcp` / `uvx` entrypoint.
-- **Deps & build:** `uv` + lockfile (v2's hand-pinned `requirements.txt` is a known pain
-  point). Deps: `idc-index`, `idc-index-data`, `duckdb`, `pyarrow`, `fastapi`, `pydantic`,
-  `mcp`. **Slim Dockerfile** — none of v2's MySQL/m2crypto/xmlsec/swig. The Parquet index
-  ships inside the image via `idc-index-data` (no external DB, no GCP for the MVP).
+- **Deps & build:** `uv` + lockfile for reproducible installs. Deps: `idc-index`,
+  `idc-index-data`, `duckdb`, `pyarrow`, `fastapi`, `pydantic`, `mcp`. **Slim Dockerfile** —
+  no MySQL/m2crypto/xmlsec/swig build weight. The Parquet index ships inside the image via
+  `idc-index-data` (no external DB, no GCP for the MVP).
 - **Hosting:** **Cloud Run** (stateless, scale-to-zero) rather than App Engine Flex —
   simpler and cheaper for a stateless service. Pin `idc-index-data`; rebuild the image on
   each IDC release; `get_idc_version` reports what's served.
 - **Caching/CDN:** discovery responses change only per release — add `Cache-Control` so
   they're effectively static between versions.
-
-## Repo & migration strategy
-Greenfield, non-destructive. Add `src/idc_api/` + new `pyproject.toml` + new `Dockerfile`
-alongside the existing `api/` tree; keep v2 deployable until v3 reaches parity, then
-retire it. No code is inherited from v2 (the user confirmed a blank slate); v2 stays as a
-reference for the filter vocabulary in `api/v2/schemas/filters.py` and `fields.py` only.
 
 ## Phased roadmap
 - **Phase 1 (MVP):** core scaffold + `DuckDBBackend` + discovery + `build_manifest` +
@@ -245,5 +237,5 @@ reference for the filter vocabulary in `api/v2/schemas/filters.py` and `fields.p
 - **MCP:** run with the **MCP Inspector**, then wire the local stdio server into Claude
   Code/Desktop and run real prompts ("find breast MRI in IDC, show counts, give me a
   download command") — this is the parallel REST+MCP dev loop the project is built around.
-- **Parity smoke test:** reproduce a representative v2 manifest query and confirm v3
-  returns equivalent series/counts.
+- **Accuracy smoke test:** reproduce a representative manifest query by hand and confirm
+  the returned series/counts are correct.

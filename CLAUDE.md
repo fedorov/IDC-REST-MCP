@@ -4,28 +4,23 @@ Guidance for working in this repository.
 
 ## What this repo is
 
-Two things live here:
+An LLM-first **REST API** + **MCP server** for the NCI Imaging Data Commons (`src/idc_api/`,
+tests in `tests/`), backed by the `idc-index` Parquet index queried locally with DuckDB. One
+backend-agnostic **core** library, two thin adapters (`rest/`, `mcp/`).
 
-- **IDC API v3** (`src/idc_api/`, tests in `tests_v3/`) — an LLM-first **REST API** + **MCP
-  server** for the NCI Imaging Data Commons, backed by the `idc-index` Parquet index queried
-  locally with DuckDB. One backend-agnostic **core** library, two thin adapters (`rest/`,
-  `mcp/`). This is the active development focus.
-- **Legacy v2 API** (`api/`, tests in `tests/`) — the older Django/BigQuery service. Don't
-  touch it unless a task is explicitly about v2.
-
-## Commands (v3)
+## Commands
 
 ```bash
 uv venv --python 3.12
 uv pip install -e ".[dev]"
-uv run --directory . pytest tests_v3 -q     # run the v3 test suite
+uv run --directory . pytest tests -q        # run the test suite
 uv run idc-api                              # REST API → http://127.0.0.1:8000 (/docs)
 uv run idc-mcp                              # MCP server over stdio
 ```
 
 ## Architecture invariants (do not break)
 
-These are the rules the v3 design depends on. Full detail and walkthroughs are in
+These are the rules the design depends on. Full detail and walkthroughs are in
 [dev/developer_guide.md](dev/developer_guide.md); the design rationale is in
 [dev/architecture.md](dev/architecture.md).
 
@@ -51,7 +46,7 @@ test). See the walkthrough in [dev/developer_guide.md](dev/developer_guide.md).
 
 ## Documentation conventions
 
-v3 docs are split by audience — keep them in their lanes:
+Docs are split by audience — keep them in their lanes:
 
 - **[docs/user-guide.md](docs/user-guide.md)** — the **human-facing** user guide: concepts, the
   query surfaces (Discovery → Cohort → Retrieval, with SQL as the escape hatch) and how they
@@ -60,20 +55,20 @@ v3 docs are split by audience — keep them in their lanes:
 - **`idc://guide` MCP resource** (the `_GUIDE` string in `src/idc_api/mcp/server.py`) — the
   **agent-facing** guide and the *canonical* place for the conceptual model on the agent side.
   It mirrors the *same conceptual model* as the user guide (tool families, how they relate, the
-  workflow). **Keep it in sync** when the conceptual model changes. Note: `tests_v3/test_mcp.py`
+  workflow). **Keep it in sync** when the conceptual model changes. Note: `tests/test_mcp.py`
   asserts this resource contains "Data model".
 - **`INSTRUCTIONS` (in `src/idc_api/mcp/server.py`)** — the MCP server `instructions`, injected
   into the agent's prompt on *every* session (always-on, most token-sensitive). Keep it **lean**:
   orientation + the behavioral rules (ground-first, check size before download, cite/license)
   + a pointer to `idc://guide`. **Do not** restate the full data model / tool reference here —
   put detail in `idc://guide` so this third copy can't silently drift.
-- **[README_v3.md](README_v3.md)** — kept **lean**: intro, status, install, run one-liners,
+- **[README.md](README.md)** — kept **lean**: intro, status, install, run one-liners,
   deploy, and pointers. **Do not** add endpoint/tool reference or usage detail here — that goes
   in the user guide.
 - **`dev/`** — design & contributor docs: [architecture.md](dev/architecture.md),
   [api_v3_plan.md](dev/api_v3_plan.md) (design rationale + SQL threat model),
   [deployment.md](dev/deployment.md), [developer_guide.md](dev/developer_guide.md).
 
-When you add or change a v3 capability: update `docs/user-guide.md`; mirror any conceptual
+When you add or change a capability: update `docs/user-guide.md`; mirror any conceptual
 change into the `idc://guide` resource; check whether `INSTRUCTIONS` needs a one-line touch (it
-usually shouldn't, if it stays lean); keep `README_v3.md` a pointer.
+usually shouldn't, if it stays lean); keep `README.md` a pointer.

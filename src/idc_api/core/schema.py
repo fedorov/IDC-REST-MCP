@@ -181,7 +181,7 @@ def table_schema(table: str) -> dict:
 # ``kind`` controls how build_manifest interprets a filter and whether get_attribute_values
 # will enumerate distinct values:
 #   - "term": equality / IN over a (usually categorical) column. OR within an attribute,
-#             AND across attributes (matching the v2 cohort semantics).
+#             AND across attributes (the standard cohort-filter convention).
 #   - "range": numeric or lexically-ordered (ISO date) column, filtered by gte/lte.
 # ``categorical`` flags low-cardinality columns worth offering value-discovery for.
 # ``note`` is a semantic caveat surfaced wherever the attribute is described (list_attributes

@@ -1,9 +1,9 @@
-# IDC API v3 — Developer Guide
+# IDC API — Developer Guide
 
-How to set up, run, test, and extend the v3 codebase. For the *why* see
+How to set up, run, test, and extend the codebase. For the *why* see
 [`dev/api_v3_plan.md`](api_v3_plan.md); for the *shape* see
 [`dev/architecture.md`](architecture.md). User-facing docs are in
-[`README_v3.md`](../README_v3.md).
+[`README.md`](../README.md).
 
 ## Prerequisites
 
@@ -39,40 +39,38 @@ npx @modelcontextprotocol/inspector uv run idc-mcp
 ## Test
 
 ```bash
-uv run --directory . pytest tests_v3 -q       # full suite (first run fetches specialized indices)
-uv run --directory . pytest tests_v3/test_backend_guards.py -q   # one file
+uv run --directory . pytest tests -q       # full suite (first run fetches specialized indices)
+uv run --directory . pytest tests/test_backend_guards.py -q   # one file
 ```
 
 > `uv run` discovers the project from the working directory. If your shell isn't at the repo
-> root, pass `--directory /path/to/IDC-API`.
+> root, pass `--directory /path/to/repo`.
 
 | Test file | Covers |
 |---|---|
-| [test_backend_guards.py](../tests_v3/test_backend_guards.py) | SQL sandbox: read-only, external access blocked, single-statement, row cap, timeout |
-| [test_services_golden.py](../tests_v3/test_services_golden.py) | **Golden:** v3 results equal `idc-index` (IDCClient) on the same Parquet |
-| [test_rest.py](../tests_v3/test_rest.py) | REST endpoint shapes, 404/501 mapping, SQL guard, OpenAPI |
-| [test_mcp.py](../tests_v3/test_mcp.py) | Tools registered, prescriptive descriptions, calls, clean errors, resources |
-| [test_parity.py](../tests_v3/test_parity.py) | **Parity:** core service == REST == MCP for the same filter |
-| [test_specialized_indices.py](../tests_v3/test_specialized_indices.py) | Specialized indices fetched + exposed to SQL + joinable to `index` |
+| [test_backend_guards.py](../tests/test_backend_guards.py) | SQL sandbox: read-only, external access blocked, single-statement, row cap, timeout |
+| [test_services_golden.py](../tests/test_services_golden.py) | **Golden:** results equal `idc-index` (IDCClient) on the same Parquet |
+| [test_rest.py](../tests/test_rest.py) | REST endpoint shapes, 404/501 mapping, SQL guard, OpenAPI |
+| [test_mcp.py](../tests/test_mcp.py) | Tools registered, prescriptive descriptions, calls, clean errors, resources |
+| [test_parity.py](../tests/test_parity.py) | **Parity:** core service == REST == MCP for the same filter |
+| [test_specialized_indices.py](../tests/test_specialized_indices.py) | Specialized indices fetched + exposed to SQL + joinable to `index` |
 
-Fixtures live in [tests_v3/conftest.py](../tests_v3/conftest.py): `ctx` (the core
+Fixtures live in [tests/conftest.py](../tests/conftest.py): `ctx` (the core
 `AppContext`), `client` (FastAPI `TestClient`), and `parse_mcp` (normalizes a FastMCP
 `call_tool` return into plain Python).
 
 ### Continuous integration
 
-[`.github/workflows/v3-ci.yml`](../.github/workflows/v3-ci.yml) runs on pushes to `idc-api-v3`
-(and manual dispatch) and on PRs that touch `src/idc_api/**`, `tests_v3/**`, `pyproject.toml`,
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on pushes to `main`
+(and manual dispatch) and on PRs that touch `src/idc_api/**`, `tests/**`, `pyproject.toml`,
 or `uv.lock`. It installs locked deps with `uv sync --extra dev`, then runs `ruff check` and
-`pytest tests_v3` on Python 3.11 and 3.12. CI needs no secrets or GCP; its first test run
+`pytest tests` on Python 3.11 and 3.12. CI needs no secrets or GCP; its first test run
 downloads the specialized indices (`IDC_API_INCLUDE_INDICES=all` by default — set `none` to run
-from bundled data only). The existing CircleCI pipeline
-([.circleci/config.yml](../.circleci/config.yml)) is unchanged and still builds/deploys v2.
-Before pushing, run the same two commands locally:
+from bundled data only). Before pushing, run the same two commands locally:
 
 ```bash
-uv run ruff check src tests_v3
-uv run pytest tests_v3 -q
+uv run ruff check src tests
+uv run pytest tests -q
 ```
 
 ## Project layout
@@ -92,7 +90,7 @@ src/idc_api/
     services/            # discovery, cohort, query, manifest, viewer, citations, licenses, download
   rest/app.py            # FastAPI app + routes
   mcp/server.py          # FastMCP tools + resources + entrypoint
-tests_v3/                # pytest suite
+tests/                   # pytest suite
 ```
 
 ## Conventions (please keep these)
@@ -152,9 +150,9 @@ Say you want `get_modality_summary()` (series count + size per modality). Touch 
        what imaging types exist and how much there is."""
        return [m.model_dump(mode="json") for m in ctx.discovery.modality_summary()]
    ```
-5. **Test** — add a parity check (core == REST == MCP) in `tests_v3/`.
+5. **Test** — add a parity check (core == REST == MCP) in `tests/`.
 
-Run `uv run --directory . pytest tests_v3 -q` and you're done.
+Run `uv run --directory . pytest tests -q` and you're done.
 
 ## Walkthrough: specialized index tables
 
@@ -223,14 +221,14 @@ Environment variables (prefix `IDC_API_`), defined in
 ## Build & deploy
 
 ```bash
-docker build -f Dockerfile.v3 -t idc-api-v3 .   # bakes the read-only DuckDB file
-docker run -p 8080:8080 idc-api-v3              # REST; override CMD with `idc-mcp --http` for MCP
+docker build -t idc-api .           # bakes the read-only DuckDB file
+docker run -p 8080:8080 idc-api     # REST; override CMD with `idc-mcp --http` for MCP
 ```
 
 The image is stateless (Cloud Run-friendly); rebuild on each IDC release to pick up new
-`idc-index-data`. The old v2 `Dockerfile`/`api/` tree is left untouched and independent.
+`idc-index-data`.
 
 Full Cloud Run deployment instructions — build/push, `gcloud run deploy`, the DuckDB-memory
 sizing rule, IDC-version updates, and the optional hosted MCP service — are in
 [`dev/deployment.md`](deployment.md) (with a Cloud Build config at
-[`dev/cloudbuild.v3.yaml`](cloudbuild.v3.yaml)).
+[`dev/cloudbuild.yaml`](cloudbuild.yaml)).

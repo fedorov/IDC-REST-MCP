@@ -1,11 +1,10 @@
 # Security Policy
 
-Scope: **IDC API v3** (`src/idc_api/`), the actively maintained REST API + MCP server. The
-legacy v2 API (`api/`) is not covered here — see [CLAUDE.md](CLAUDE.md).
+Scope: this repo's REST API + MCP server (`src/idc_api/`).
 
 ## Threat model, in one paragraph
 
-v3 serves the public NCI Imaging Data Commons index — an open, de-identified dataset, not
+This service serves the public NCI Imaging Data Commons index — an open, de-identified dataset, not
 secret data. The DuckDB backend is opened read-only, so no request can modify or delete it.
 The realistic risk is therefore **abuse of the server** (cost, availability, resource
 exhaustion) rather than data disclosure. Full rationale and the guarded-SQL threat model live in
@@ -17,7 +16,7 @@ exhaustion) rather than data disclosure. Full rationale and the guarded-SQL thre
   `autoload/autoinstall_known_extensions=false`, `lock_configuration=true` (frozen at connect
   time). See `DuckDBBackend._hardening_config` in
   [duckdb_backend.py](src/idc_api/core/backend/duckdb_backend.py). Regression-tested in
-  [tests_v3/test_backend_guards.py](tests_v3/test_backend_guards.py): non-SELECT statements,
+  [tests/test_backend_guards.py](tests/test_backend_guards.py): non-SELECT statements,
   multi-statement SQL, local/remote file access, and extension-loading/export statements
   (`INSTALL`, `LOAD`, `COPY ... TO`, `SET`) are all rejected.
 - **Row/response caps** — `run_sql` and manifest endpoints clamp `max_rows` to a hard server
@@ -38,8 +37,8 @@ exhaustion) rather than data disclosure. Full rationale and the guarded-SQL thre
   can't inflate a line), not confidentiality. Client IPs are not logged at the application level
   (Cloud Run's own request log already has caller IP, correlatable by timestamp).
 - **CI checks** on every PR: `ruff` (lint), `bandit` (static security lint), `pip-audit`
-  (dependency CVEs), and the `tests_v3` suite.
-- **Non-root container** — `Dockerfile.v3` drops to an unprivileged user before serving.
+  (dependency CVEs), and the `tests` suite.
+- **Non-root container** — `Dockerfile` drops to an unprivileged user before serving.
 
 ## Known residual risks (public deployment)
 
@@ -57,6 +56,6 @@ service.
 ## Reporting a vulnerability
 
 Please use GitHub's private
-["Report a vulnerability"](https://github.com/ImagingDataCommons/IDC-API/security/advisories/new)
+["Report a vulnerability"](https://github.com/fedorov/IDC-REST-MCP/security/advisories/new)
 flow so it isn't publicly disclosed before a fix ships. For non-sensitive hardening suggestions
 (e.g. a missing test case), a regular GitHub issue is fine.

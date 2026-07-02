@@ -1,7 +1,7 @@
-# IDC API v3 — User Guide
+# IDC API — User Guide
 
 How to query the [NCI Imaging Data Commons (IDC)](https://imaging.datacommons.cancer.gov/)
-through IDC API v3. The same capabilities are available two ways:
+through the IDC API. The same capabilities are available two ways:
 
 - **REST API** (HTTP/JSON) — for scripts, apps, and notebooks.
 - **MCP server** — the same capabilities as Model Context Protocol tools, so LLM agents
@@ -9,7 +9,7 @@ through IDC API v3. The same capabilities are available two ways:
 
 All IDC data is **public and open — no authentication, account, or credentials required.**
 
-> Looking for install/run/deploy instructions? See [`README_v3.md`](../README_v3.md). For the
+> Looking for install/run/deploy instructions? See [`README.md`](../README.md). For the
 > internal design, see [`dev/architecture.md`](../dev/architecture.md).
 
 ---
@@ -209,7 +209,7 @@ WHERE i.collection_id = 'nlst' AND i.Modality = 'CT'
 
 ## 2. Using the REST API
 
-Start the server (see [`README_v3.md`](../README_v3.md) for install):
+Start the server (see [`README.md`](../README.md) for install):
 
 ```bash
 uv run idc-api          # http://127.0.0.1:8000  — Swagger UI at /docs
@@ -449,7 +449,7 @@ Environment variables (prefix `IDC_API_`):
 
 ## See also
 
-- [`README_v3.md`](../README_v3.md) — install, run, and deploy.
+- [`README.md`](../README.md) — install, run, and deploy.
 - [`dev/architecture.md`](../dev/architecture.md) — internal design (core + two adapters).
 - [`dev/deployment.md`](../dev/deployment.md) — Cloud Run deployment.
 - [`dev/api_v3_plan.md`](../dev/api_v3_plan.md) — design rationale + SQL threat model.

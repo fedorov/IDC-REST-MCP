@@ -1,11 +1,10 @@
-# Cloud Build config for the IDC API v3 image (uses Dockerfile.v3, which the default
-# `gcloud builds submit --tag` flow would not pick up).
+# Cloud Build config for the IDC API image.
 #
-#   gcloud builds submit --config dev/cloudbuild.v3.yaml \
-#     --substitutions _IMAGE=REGION-docker.pkg.dev/PROJECT_ID/REPO/idc-api-v3:latest
+#   gcloud builds submit --config dev/cloudbuild.yaml \
+#     --substitutions _IMAGE=REGION-docker.pkg.dev/PROJECT_ID/REPO/idc-api:latest
 steps:
   - name: gcr.io/cloud-builders/docker
-    args: ["build", "-f", "Dockerfile.v3", "-t", "${_IMAGE}", "."]
+    args: ["build", "-t", "${_IMAGE}", "."]
   - name: gcr.io/cloud-builders/docker
     args: ["push", "${_IMAGE}"]
 images: ["${_IMAGE}"]

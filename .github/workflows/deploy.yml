@@ -1,6 +1,6 @@
-name: v3 Deploy (Cloud Run)
+name: Deploy (Cloud Run)
 
-# Manual build+push+deploy of the v3 REST API and/or MCP service to Cloud Run, per
+# Manual build+push+deploy of the REST API and/or MCP service to Cloud Run, per
 # dev/deployment.md. Requires two repo secrets:
 #   GCP_SA_KEY      - JSON key for a deploy service account (see dev/deployment.md for
 #                      required roles: roles/run.admin, roles/artifactregistry.writer,
@@ -36,7 +36,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: v3-deploy
+  group: deploy
   cancel-in-progress: false
 
 jobs:
@@ -51,7 +51,7 @@ jobs:
           TAG="${{ inputs.image_tag }}"
           if [ -z "$TAG" ]; then TAG="${GITHUB_SHA:0:7}"; fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "image=${{ inputs.region }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ inputs.repo }}/idc-api-v3:$TAG" >> "$GITHUB_OUTPUT"
+          echo "image=${{ inputs.region }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ inputs.repo }}/idc-api:$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -65,13 +65,13 @@ jobs:
 
       - name: Build & push image (Cloud Build)
         run: |
-          gcloud builds submit --config dev/cloudbuild.v3.yaml \
+          gcloud builds submit --config dev/cloudbuild.yaml \
             --substitutions _IMAGE="${{ steps.vars.outputs.image }}"
 
       - name: Deploy REST API
         if: ${{ inputs.target == 'rest' || inputs.target == 'both' }}
         run: |
-          gcloud run deploy idc-api-v3 \
+          gcloud run deploy idc-api \
             --image "${{ steps.vars.outputs.image }}" \
             --region "${{ inputs.region }}" \
             --allow-unauthenticated \
@@ -84,7 +84,7 @@ jobs:
       - name: Deploy MCP service
         if: ${{ inputs.target == 'mcp' || inputs.target == 'both' }}
         run: |
-          gcloud run deploy idc-mcp-v3 \
+          gcloud run deploy idc-mcp \
             --image "${{ steps.vars.outputs.image }}" \
             --region "${{ inputs.region }}" \
             --allow-unauthenticated \
@@ -97,7 +97,7 @@ jobs:
       - name: Verify REST API
         if: ${{ inputs.target == 'rest' || inputs.target == 'both' }}
         run: |
-          URL=$(gcloud run services describe idc-api-v3 --region "${{ inputs.region }}" --format='value(status.url)')
+          URL=$(gcloud run services describe idc-api --region "${{ inputs.region }}" --format='value(status.url)')
           curl -sf "$URL/health"; echo
           {
             echo "### REST API deployed"
@@ -107,7 +107,7 @@ jobs:
       - name: Verify MCP service
         if: ${{ inputs.target == 'mcp' || inputs.target == 'both' }}
         run: |
-          URL=$(gcloud run services describe idc-mcp-v3 --region "${{ inputs.region }}" --format='value(status.url)')
+          URL=$(gcloud run services describe idc-mcp --region "${{ inputs.region }}" --format='value(status.url)')
           {
             echo "### MCP service deployed"
             echo "$URL/mcp"

@@ -1,8 +1,8 @@
 [project]
 name = "idc-api"
 version = "3.0.0.dev0"
-description = "IDC API v3 — LLM-first REST API and MCP server for NCI Imaging Data Commons, backed by idc-index Parquet + DuckDB."
-readme = "README_v3.md"
+description = "LLM-first REST API and MCP server for NCI Imaging Data Commons, backed by idc-index Parquet + DuckDB."
+readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Imaging Data Commons" }]
@@ -47,7 +47,7 @@ build-backend = "hatchling.build"
 packages = ["src/idc_api"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests_v3"]
+testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.ruff]

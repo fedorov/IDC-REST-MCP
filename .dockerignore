@@ -5,9 +5,6 @@
 .pytest_cache
 .ruff_cache
 tests
-tests_v3
 dev
-api
-shell
 *.duckdb
 .env

@@ -1,8 +1,8 @@
-# IDC API v3 — Deploying to Cloud Run
+# IDC API — Deploying to Cloud Run
 
-The v3 service is **stateless** and needs **no secrets, GCP data access, or external
+The service is **stateless** and needs **no secrets, GCP data access, or external
 database**: the read-only DuckDB file is baked into the image from the bundled `idc-index`
-Parquet (see [Dockerfile.v3](../Dockerfile.v3)). That makes Cloud Run a natural fit —
+Parquet (see [Dockerfile](../Dockerfile)). That makes Cloud Run a natural fit —
 scale-to-zero, one container, public unauthenticated access.
 
 This guide covers the **REST API**. The optional remote **MCP** service is at the end.
@@ -19,7 +19,7 @@ Set shimmable variables for the commands below:
 export PROJECT_ID=your-project
 export REGION=us-central1
 export REPO=idc                       # Artifact Registry repo name
-export IMAGE=$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/idc-api-v3:latest
+export IMAGE=$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/idc-api:latest
 gcloud config set project "$PROJECT_ID"
 ```
 
@@ -35,27 +35,24 @@ gcloud artifacts repositories create "$REPO" \
 
 ## 2. Build & push the image
 
-Because the Dockerfile is named `Dockerfile.v3` (the default build flow only finds
-`Dockerfile`), use either path:
-
 **Cloud Build (no local Docker):**
 
 ```bash
-gcloud builds submit --config dev/cloudbuild.v3.yaml --substitutions _IMAGE="$IMAGE"
+gcloud builds submit --config dev/cloudbuild.yaml --substitutions _IMAGE="$IMAGE"
 ```
 
 **Or local Docker:**
 
 ```bash
 gcloud auth configure-docker "$REGION-docker.pkg.dev"
-docker build -f Dockerfile.v3 -t "$IMAGE" .
+docker build -t "$IMAGE" .
 docker push "$IMAGE"
 ```
 
 ## 3. Deploy the REST API
 
 ```bash
-gcloud run deploy idc-api-v3 \
+gcloud run deploy idc-api \
   --image "$IMAGE" \
   --region "$REGION" \
   --allow-unauthenticated \
@@ -112,7 +109,7 @@ signal to watch for "is someone abusing this" before reaching for either.
 ## 4. Verify
 
 ```bash
-URL=$(gcloud run services describe idc-api-v3 --region "$REGION" --format='value(status.url)')
+URL=$(gcloud run services describe idc-api --region "$REGION" --format='value(status.url)')
 curl -s "$URL/health"; echo
 curl -s "$URL/v3/version"; echo
 open "$URL/docs"   # Swagger UI
@@ -137,7 +134,7 @@ Deploy the same image with the MCP command to expose the tools over MCP streamab
 (download is disabled in hosted mode — manifests/URLs only):
 
 ```bash
-gcloud run deploy idc-mcp-v3 \
+gcloud run deploy idc-mcp \
   --image "$IMAGE" \
   --region "$REGION" \
   --allow-unauthenticated \
@@ -190,7 +187,7 @@ The MCP endpoint is then `https://<service-url>/mcp` (note the `/mcp` path).
   balancer + Cloud CDN. Discovery responses change only per IDC release, so they cache well —
   add `Cache-Control` if you put a CDN in front. See [caching_and_cdn.md](caching_and_cdn.md)
   for a primer and the proposed (not-yet-implemented) cache-header enhancement.
-- **CI/CD:** [.github/workflows/v3-deploy.yml](../.github/workflows/v3-deploy.yml) automates
+- **CI/CD:** [.github/workflows/deploy.yml](../.github/workflows/deploy.yml) automates
   steps 2–3 as a manual (`workflow_dispatch`) job — pick `rest`, `mcp`, or `both` and it
   builds, pushes, and deploys. It authenticates with a long-lived service account key rather
   than Workload Identity Federation, so set two repo secrets first:
@@ -212,7 +209,7 @@ The MCP endpoint is then `https://<service-url>/mcp` (note the `/mcp` path).
   Create it once with:
 
   ```bash
-  gcloud iam service-accounts create idc-api-deployer --display-name="IDC API v3 deployer"
+  gcloud iam service-accounts create idc-api-deployer --display-name="IDC API deployer"
   SA="idc-api-deployer@$PROJECT_ID.iam.gserviceaccount.com"
   for role in roles/run.admin roles/artifactregistry.writer roles/cloudbuild.builds.editor \
               roles/iam.serviceAccountUser roles/storage.admin \

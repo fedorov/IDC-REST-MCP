@@ -1,5 +1,5 @@
 """Cohort building: structured filters -> distinct counts + a page of series rows + a
-download payload. Replaces v2's `/cohorts/manifest/preview` without any SQL string surgery."""
+download payload, without any SQL string surgery."""
 
 from __future__ import annotations
 

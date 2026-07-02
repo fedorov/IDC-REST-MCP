@@ -1,4 +1,4 @@
-# IDC API v3 — slim image for the REST API (and remote MCP). No MySQL/SAML/xmlsec weight.
+# IDC API — slim image for the REST API (and remote MCP).
 FROM python:3.12-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
@@ -11,7 +11,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv
 
 # Install dependencies + the package (bundled idc-index-data Parquet comes along).
-COPY pyproject.toml README_v3.md ./
+COPY pyproject.toml README.md ./
 COPY src ./src
 RUN uv pip install --system .
 

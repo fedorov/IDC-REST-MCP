@@ -1,4 +1,4 @@
-"""FastAPI application for IDC API v3.
+"""FastAPI application for the IDC API.
 
 Routes are deliberately thin: each one validates input via Pydantic and delegates to a core
 service. No business logic or SQL lives here — that all sits in ``idc_api.core``.
@@ -102,7 +102,7 @@ async def lifespan(app: FastAPI):
 def create_app(ctx: AppContext | None = None) -> FastAPI:
     settings = get_settings()
     app = FastAPI(
-        title="IDC API v3",
+        title="IDC API",
         version="3.0.0",
         summary="LLM-first REST API for NCI Imaging Data Commons, backed by idc-index + DuckDB.",
         lifespan=lifespan,
@@ -156,7 +156,7 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
     @app.get("/", tags=["meta"])
     def root():
         return {
-            "name": "IDC API v3",
+            "name": "IDC API",
             "docs": "/docs",
             "openapi": "/openapi.json",
             "version_endpoint": f"{API_PREFIX}/version",

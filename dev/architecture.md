@@ -1,6 +1,6 @@
-# IDC API v3 — Architecture Overview
+# IDC API — Architecture Overview
 
-This document describes the architecture of the v3 codebase under `src/idc_api/`. For the
+This document describes the architecture of the codebase under `src/idc_api/`. For the
 *why* (problem statement, decisions, threat model) see [`dev/api_v3_plan.md`](api_v3_plan.md);
 for *how to work in it* see [`dev/developer_guide.md`](developer_guide.md).
 
@@ -10,7 +10,7 @@ for *how to work in it* see [`dev/developer_guide.md`](developer_guide.md).
    must be exposable as a well-described MCP tool *and* an HTTP endpoint with no duplicated
    logic.
 2. **Lean on `idc-index`.** Reuse its bundled Parquet index + DuckDB engine; do not
-   reimplement queries, citations, viewer URLs, or downloads from scratch. This deletes v2's
+   reimplement queries, citations, viewer URLs, or downloads from scratch. This avoids any
    BigQuery/webapp coupling and SQL-string surgery.
 3. **Swappable backend.** Today everything runs locally on Parquet+DuckDB; a BigQuery backend
    must be addable later without touching services or adapters.

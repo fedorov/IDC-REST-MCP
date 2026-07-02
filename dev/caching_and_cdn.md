@@ -1,4 +1,4 @@
-# Caching & CDNs for IDC API v3 (explainer + future enhancement)
+# Caching & CDNs for IDC API (explainer + future enhancement)
 
 This is both a primer on HTTP caching / CDNs and a record of a **potential future
 enhancement**: making the API "CDN-ready" by emitting `Cache-Control`/`ETag` headers. It is
@@ -53,7 +53,7 @@ Two more concepts:
 > **Key limitation:** CDNs cache `GET`/`HEAD`, **not `POST`**. POST is treated as an action,
 > not a cacheable resource.
 
-## How this maps to IDC API v3
+## How this maps to the IDC API
 
 The IDC data version is **baked into the container image** (the read-only DuckDB file is built
 at image-build time), so the queryable data only changes when a **new image is deployed**

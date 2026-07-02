@@ -1,29 +1,29 @@
-name: v3 CI
+name: CI
 
-# Lint + test the v3 API/MCP package (src/idc_api, tests_v3). The existing CircleCI pipeline
-# continues to build/deploy v2 independently. No GCP or credentials needed; the first test run
-# downloads the specialized idc-index parquet (IDC_API_INCLUDE_INDICES=all by default).
+# Lint + test the API/MCP package (src/idc_api, tests). No GCP or credentials needed; the
+# first test run downloads the specialized idc-index parquet (IDC_API_INCLUDE_INDICES=all
+# by default).
 
 on:
   workflow_dispatch:
   push:
-    branches: [idc-api-v3]
+    branches: [main]
     paths:
       - "src/idc_api/**"
-      - "tests_v3/**"
+      - "tests/**"
       - "pyproject.toml"
       - "uv.lock"
-      - ".github/workflows/v3-ci.yml"
+      - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "src/idc_api/**"
-      - "tests_v3/**"
+      - "tests/**"
       - "pyproject.toml"
       - "uv.lock"
-      - ".github/workflows/v3-ci.yml"
+      - ".github/workflows/ci.yml"
 
 concurrency:
-  group: v3-ci-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -46,7 +46,7 @@ jobs:
         run: uv sync --extra dev --python ${{ matrix.python-version }}
 
       - name: Lint (ruff)
-        run: uv run ruff check src tests_v3
+        run: uv run ruff check src tests
 
       - name: Security lint (bandit)
         run: uv run bandit -q -r src/idc_api
@@ -55,4 +55,4 @@ jobs:
         run: uv run pip-audit
 
       - name: Test (pytest)
-        run: uv run pytest tests_v3 -q
+        run: uv run pytest tests -q

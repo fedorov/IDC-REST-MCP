@@ -1,6 +1,6 @@
-# IDC API v3
+# IDC API
 
-[![v3 CI](https://github.com/ImagingDataCommons/IDC-API/actions/workflows/v3-ci.yml/badge.svg)](https://github.com/ImagingDataCommons/IDC-API/actions/workflows/v3-ci.yml)
+[![CI](https://github.com/fedorov/IDC-REST-MCP/actions/workflows/ci.yml/badge.svg)](https://github.com/fedorov/IDC-REST-MCP/actions/workflows/ci.yml)
 
 LLM-first **REST API** and **MCP server** for the [NCI Imaging Data Commons (IDC)](https://imaging.datacommons.cancer.gov/),
 backed by the [`idc-index`](https://github.com/ImagingDataCommons/idc-index) Parquet index
@@ -37,7 +37,7 @@ both.
 ```bash
 uv venv --python 3.12
 uv pip install -e ".[dev]"
-uv run --directory . pytest tests_v3 -q
+uv run --directory . pytest tests -q
 ```
 
 The first run builds a read-only DuckDB database (cached under your temp dir, pinned to the
@@ -71,8 +71,8 @@ For the endpoint/tool reference, MCP client setup, downloads, and configuration,
 Run it anywhere with the slim image:
 
 ```bash
-docker build -f Dockerfile.v3 -t idc-api-v3 .
-docker run -p 8080:8080 idc-api-v3            # REST API
+docker build -t idc-api .
+docker run -p 8080:8080 idc-api               # REST API
 ```
 
 The image bakes the read-only DuckDB file (set via `IDC_API_DUCKDB_PATH`) at build time, so
