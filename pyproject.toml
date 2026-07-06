@@ -11,24 +11,24 @@ keywords = ["IDC", "DICOM", "cancer imaging", "MCP", "REST", "idc-index"]
 dependencies = [
     # Query engine + data
     "idc-index>=0.12.2",
-    "duckdb>=1.1",
+    "duckdb>=1.5.4",
     "pyarrow>=15",
     # Shared models / settings
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
     # REST adapter
-    "fastapi>=0.115",
-    "uvicorn[standard]>=0.30",
+    "fastapi>=0.139.0",
+    "uvicorn[standard]>=0.50.2",
     # MCP adapter (official SDK; bundles FastMCP server API)
-    "mcp>=1.2",
+    "mcp>=1.28.1",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8",
+    "pytest>=9.1.1",
     "httpx>=0.27",          # FastAPI TestClient transport
     "pytest-asyncio>=0.23",
-    "ruff>=0.6",
+    "ruff>=0.15.20",
     "bandit>=1.7",          # static security lint (CI)
     "pip-audit>=2.7",       # dependency CVE scan (CI)
 ]
