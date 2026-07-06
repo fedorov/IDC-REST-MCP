@@ -83,3 +83,18 @@ Rebuild on each IDC release to pick up the new `idc-index-data`.
 **Cloud Run:** step-by-step instructions (build/push, deploy, the DuckDB-memory sizing rule,
 updating IDC versions, and the optional hosted MCP service) are in
 [`dev/deployment.md`](dev/deployment.md).
+
+## Acknowledging IDC
+
+Built on the [NCI Imaging Data Commons (IDC)](https://imaging.datacommons.cancer.gov/). When you
+publish results using IDC data, include the per-dataset citations **and** acknowledge IDC itself
+by citing the IDC paper — Fedorov et al., [10.1148/rg.230180](https://doi.org/10.1148/rg.230180).
+The `citations` capability returns both; see the
+[User Guide](docs/user-guide.md#6-licenses--citations).
+
+This software is maintained in part by the NCI Imaging Data Commons project, which has been funded
+in whole or in part with Federal funds from the National Cancer Institute, National Institutes of
+Health, Department of Health and Human Services, under task order no. HHSN26110071 under contract
+no. HHSN261201500003I. The statements do not necessarily reflect the views or policies of the
+Department of Health and Human Services, nor does mention of trade names, commercial products, or
+organizations imply endorsement by the U.S. Government.
