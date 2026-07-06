@@ -18,6 +18,7 @@ from ..models import (
     Stats,
     VersionInfo,
 )
+from ..version import build_stamp, package_version
 
 _MB_PER_TB = 1_000_000
 
@@ -35,6 +36,8 @@ class DiscoveryService:
         return VersionInfo(
             idc_version=_idc_version(),
             idc_index_data_version=idc_index_data.__version__,
+            api_version=package_version(),
+            build=build_stamp(),
         )
 
     def stats(self) -> Stats:

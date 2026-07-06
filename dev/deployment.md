@@ -159,6 +159,10 @@ The MCP endpoint is then `https://<service-url>/mcp` (note the `/mcp` path).
 >   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}' \
 >   | sed -n 's/.*"version":"\([^"]*\)".*/\1/p'
 > ```
+>
+> The **REST** service reports the same software version with no handshake needed: `GET /v3/version`
+> returns `api_version` + `build`, and the combined string is also the OpenAPI `info.version` at
+> `/openapi.json` (and `server_version` at `GET /`).
 
 > **Host-header / DNS-rebinding protection.** The MCP streamable-HTTP transport ships with
 > DNS-rebinding protection that allow-lists the `Host` header to localhost only, which would

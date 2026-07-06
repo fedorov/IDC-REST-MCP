@@ -219,7 +219,7 @@ uv run idc-api          # http://127.0.0.1:8000  — Swagger UI at /docs
 
 | Method & path | Purpose |
 |---|---|
-| `GET /v3/version` | IDC data release served (e.g. `v24`) + pinned index version |
+| `GET /v3/version` | IDC data release served (e.g. `v24`) + pinned index version, **and** this server's own software version (`api_version`, plus `build` if the deploy stamped one) |
 | `GET /v3/stats` | Headline totals (collections, patients, studies, series, size_TB) |
 | `GET /v3/collections` | List collections (datasets) |
 | `GET /v3/collections/{id}` | Collection detail: counts, modalities, license breakdown |
@@ -444,6 +444,7 @@ Environment variables (prefix `IDC_API_`):
 | `HOST` / `PORT` | `127.0.0.1` / `8000` | REST bind address |
 | `SQL_LOG_MODE` | `snippet` | How `run_sql`/`POST /v3/sql` queries appear in the structured audit log: `snippet` (readable, capped) or `hash` (a short digest, no query text at all) |
 | `SQL_LOG_CHARS` | `200` | Snippet length when `SQL_LOG_MODE=snippet` |
+| `BUILD` | (unset) | Deploy-time build stamp (e.g. a short git SHA). Appended to the software version reported by `GET /v3/version` (`build`), `GET /` and OpenAPI `info.version` (`api_version+build`), and the MCP `serverInfo.version` — so you can confirm which build a hosted instance is running |
 
 ---
 

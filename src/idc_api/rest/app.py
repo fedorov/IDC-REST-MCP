@@ -38,6 +38,7 @@ from ..core.models import (
     VersionInfo,
     ViewerURL,
 )
+from ..core.version import server_version
 from ..settings import get_settings
 
 API_PREFIX = "/v3"
@@ -103,7 +104,9 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="IDC API",
-        version="3.0.0",
+        # Driven by the installed package (+ IDC_API_BUILD stamp) via the shared helper, not a
+        # hardcoded literal, so /openapi.json reflects the actual build.
+        version=server_version(),
         summary="LLM-first REST API for NCI Imaging Data Commons, backed by idc-index + DuckDB.",
         lifespan=lifespan,
     )
@@ -157,6 +160,7 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
     def root():
         return {
             "name": "IDC API",
+            "server_version": server_version(),  # this server's software/build version
             "docs": "/docs",
             "openapi": "/openapi.json",
             "version_endpoint": f"{API_PREFIX}/version",

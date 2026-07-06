@@ -13,6 +13,20 @@ from idc_api.mcp.server import mcp
 _TERMS = {"collection_id": ["rider_pilot"], "Modality": ["CT"]}
 
 
+async def test_version_parity(ctx, client, parse_mcp):
+    """version() is identical across core, REST, and MCP, and carries the server's own software
+    version — which lines up with the string the MCP initialize handshake advertises."""
+    from idc_api.mcp.server import _server_version
+
+    core = ctx.discovery.version().model_dump(mode="json")
+    rest = client.get("/v3/version").json()
+    mcp_out = parse_mcp(await mcp.call_tool("get_idc_version", {}))
+    assert core == rest == mcp_out
+    assert core["api_version"]
+    # serverInfo.version == api_version[+build]; api_version is its stable prefix.
+    assert _server_version().startswith(core["api_version"])
+
+
 async def test_counts_parity(ctx, client, parse_mcp):
     core_series = ctx.cohort.counts(CohortFilters(terms=_TERMS)).series
 
