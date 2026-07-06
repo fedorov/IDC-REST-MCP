@@ -12,6 +12,17 @@ from pydantic import BaseModel, Field
 class VersionInfo(BaseModel):
     idc_version: str = Field(..., description="IDC data release served, e.g. 'v24'.")
     idc_index_data_version: str = Field(..., description="Pinned idc-index-data package version.")
+    api_version: str = Field(
+        ...,
+        description="This server's own software version (the idc-api package), e.g. "
+        "'3.0.0.dev0' — distinct from the IDC *data* version above.",
+    )
+    build: str | None = Field(
+        None,
+        description="Deploy-time build stamp (IDC_API_BUILD, e.g. a short git SHA), or null if "
+        "unset. Confirms which build a hosted instance is running; the MCP initialize handshake "
+        "reports the same as serverInfo.version = api_version[+build].",
+    )
 
 
 class Stats(BaseModel):

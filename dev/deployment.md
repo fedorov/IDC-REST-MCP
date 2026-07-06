@@ -60,8 +60,14 @@ gcloud run deploy idc-api-v3 \
   --concurrency 40 \
   --min-instances 0 --max-instances 5 \
   --cpu-boost \
-  --set-env-vars IDC_API_DUCKDB_MEMORY_LIMIT=3GB,IDC_API_DUCKDB_THREADS=2
+  --set-env-vars IDC_API_DUCKDB_MEMORY_LIMIT=3GB,IDC_API_DUCKDB_THREADS=2,IDC_API_BUILD=$(git rev-parse --short HEAD)
 ```
+
+> `IDC_API_BUILD` (a short git SHA / image tag) is stamped into the software version reported at
+> `GET /v3/version` (`build`), `GET /`, and OpenAPI `info.version`, so you can confirm which build
+> a hosted REST instance is running — the same mechanism the MCP service uses for
+> `serverInfo.version` (see *Which build is live?* below). Omit it and `/v3/version` reports
+> `build: null` (the package version alone, static across redeploys of a release).
 
 `--allow-unauthenticated` is correct here — all IDC data is open. Cloud Run injects `PORT`
 (8080); the container already listens on `0.0.0.0:$PORT`. The default compute service account
@@ -159,6 +165,10 @@ The MCP endpoint is then `https://<service-url>/mcp` (note the `/mcp` path).
 >   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}' \
 >   | sed -n 's/.*"version":"\([^"]*\)".*/\1/p'
 > ```
+>
+> The **REST** service reports the same software version with no handshake needed: `GET /v3/version`
+> returns `api_version` + `build`, and the combined string is also the OpenAPI `info.version` at
+> `/openapi.json` (and `server_version` at `GET /`).
 
 > **Host-header / DNS-rebinding protection.** The MCP streamable-HTTP transport ships with
 > DNS-rebinding protection that allow-lists the `Host` header to localhost only, which would

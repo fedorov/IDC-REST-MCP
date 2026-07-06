@@ -79,7 +79,7 @@ jobs:
             --concurrency 40 \
             --min-instances 0 --max-instances 5 \
             --cpu-boost \
-            --set-env-vars IDC_API_DUCKDB_MEMORY_LIMIT=3GB,IDC_API_DUCKDB_THREADS=2
+            --set-env-vars IDC_API_DUCKDB_MEMORY_LIMIT=3GB,IDC_API_DUCKDB_THREADS=2,IDC_API_BUILD=${{ steps.vars.outputs.tag }}
 
       - name: Deploy MCP service
         if: ${{ inputs.target == 'mcp' || inputs.target == 'both' }}

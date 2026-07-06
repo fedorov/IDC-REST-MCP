@@ -4,10 +4,23 @@ from __future__ import annotations
 
 
 def test_version_and_stats(client):
+    from idc_api.core.version import server_version
+
     v = client.get("/v3/version").json()
     assert v["idc_version"].startswith("v")
+    # The server's own software version, distinct from the IDC data version, and consistent with
+    # the shared helper the MCP handshake / OpenAPI also use.
+    assert v["api_version"] and server_version().startswith(v["api_version"])
+    assert "build" in v
     s = client.get("/v3/stats").json()
     assert s["series"] > 1_000_000 and s["collections"] > 100
+
+
+def test_root_reports_server_version(client):
+    from idc_api.core.version import server_version
+
+    root = client.get("/").json()
+    assert root["server_version"] == server_version()
 
 
 def test_collections_and_detail(client):
@@ -68,6 +81,10 @@ def test_download_disabled_returns_501(client):
 
 
 def test_openapi_served(client):
+    from idc_api.core.version import server_version
+
     spec = client.get("/openapi.json").json()
     assert spec["info"]["title"] == "IDC API"
+    # info.version is driven by the package/build version, not a hardcoded literal.
+    assert spec["info"]["version"] == server_version()
     assert "/v3/cohort/manifest" in spec["paths"]

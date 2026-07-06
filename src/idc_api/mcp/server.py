@@ -20,7 +20,6 @@ import inspect
 import json
 import logging
 import time
-from importlib.metadata import PackageNotFoundError, version as _pkg_version
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -28,6 +27,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 
 from ..core import schema as core_schema
+from ..core import version as core_version
 from ..core.context import AppContext
 from ..core.errors import IDCAPIError
 from ..core.models import CohortFilters, NumericRange
@@ -102,14 +102,10 @@ def _server_version() -> str:
     SHA) it is appended as a PEP 440 local segment so the string moves on every redeploy — this
     is how a caller confirms which build a hosted instance is actually running. Without setting
     `version=`, FastMCP would fall back to the MCP SDK's own version, which says nothing about
-    this server.
+    this server. Shared with the REST adapter (which reports the same string via /v3/version and
+    /openapi.json) through core.version.
     """
-    try:
-        base = _pkg_version("idc-api")
-    except PackageNotFoundError:  # running from a source tree without an install
-        base = "0.0.0+unknown"
-    build = get_settings().build
-    return f"{base}+{build}" if build and "+" not in base else base
+    return core_version.server_version()
 
 
 mcp = FastMCP(
@@ -212,8 +208,10 @@ def _filters(terms: dict | None, ranges: dict | None) -> CohortFilters:
 @mcp.tool()
 @guard
 def get_idc_version() -> dict:
-    """Return the IDC data release served (e.g. 'v24') and the pinned index version. Call
-    this to confirm which IDC version your answers are based on."""
+    """Return the IDC data release served (e.g. 'v24') and pinned idc-index version, plus this
+    server's own software version (`api_version`, and `build` if the deploy stamped one). Call
+    this to confirm which IDC version your answers are based on — and which build of the server
+    produced them."""
     return ctx.discovery.version().model_dump(mode="json")
 
 
