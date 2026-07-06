@@ -1,0 +1,35 @@
+name: Lint workflows (actionlint)
+
+# Lints the GitHub Actions workflow files themselves — reusable-workflow input matching,
+# expression syntax, and shellcheck on `run:` scripts. Kept separate from ci.yml (the Python
+# suite) so the two stay independently path-filtered: this runs only when a workflow changes.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: actionlint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run actionlint
+        run: |
+          # Official pinned installer (script ref + binary version both v1.7.12). ubuntu-latest
+          # ships shellcheck, so actionlint's `run:` script checks apply too, matching local runs.
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12
+          ./actionlint -color
