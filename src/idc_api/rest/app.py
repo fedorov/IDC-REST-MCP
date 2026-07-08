@@ -158,10 +158,18 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
     app = FastAPI(
         title="IDC API",
         # Driven by the installed package (+ IDC_API_BUILD stamp) via the shared helper, not a
-        # hardcoded literal, so /openapi.json reflects the actual build.
+        # hardcoded literal, so /v3/openapi.json reflects the actual build.
         version=server_version(),
         summary="LLM-first REST API for NCI Imaging Data Commons, backed by idc-index + DuckDB.",
         lifespan=lifespan,
+        # Every route — schema, docs, and health included — lives under the API_PREFIX (/v3) so
+        # the hosting load balancer routes the whole REST surface with one `/v3/*` glob (the MCP
+        # service is a sibling at /mcp). Nothing is served at the bare root. See dev/deployment.md
+        # "Shared-domain path routing".
+        docs_url=f"{API_PREFIX}/docs",
+        redoc_url=f"{API_PREFIX}/redoc",
+        openapi_url=f"{API_PREFIX}/openapi.json",
+        swagger_ui_oauth2_redirect_url=f"{API_PREFIX}/docs/oauth2-redirect",
     )
     if ctx is not None:
         app.state.ctx = ctx
@@ -209,17 +217,17 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
         return app.state.ctx
 
     # --- meta ---
-    @app.get("/", tags=["meta"])
+    @app.get(API_PREFIX, tags=["meta"])
     def root():
         return {
             "name": "IDC API",
             "server_version": server_version(),  # this server's software/build version
-            "docs": "/docs",
-            "openapi": "/openapi.json",
+            "docs": f"{API_PREFIX}/docs",
+            "openapi": f"{API_PREFIX}/openapi.json",
             "version_endpoint": f"{API_PREFIX}/version",
         }
 
-    @app.get("/health", tags=["meta"])
+    @app.get(f"{API_PREFIX}/health", tags=["meta"])
     def health():
         return {"status": "ok"}
 

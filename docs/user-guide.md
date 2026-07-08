@@ -212,7 +212,7 @@ WHERE i.collection_id = 'nlst' AND i.Modality = 'CT'
 Start the server (see [`README.md`](../README.md) for install):
 
 ```bash
-uv run idc-api          # http://127.0.0.1:8000  — Swagger UI at /docs
+uv run idc-api          # http://127.0.0.1:8000  — Swagger UI at /v3/docs
 ```
 
 ### Endpoint reference
@@ -242,7 +242,7 @@ uv run idc-api          # http://127.0.0.1:8000  — Swagger UI at /docs
 
 ### Worked examples
 
-Every endpoint below is also documented interactively at `/docs` (Swagger UI), with a filled-in
+Every endpoint below is also documented interactively at `/v3/docs` (Swagger UI), with a filled-in
 request/response example for each.
 
 **Discover valid values before filtering:**

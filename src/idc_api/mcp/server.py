@@ -103,7 +103,7 @@ def _server_version() -> str:
     is how a caller confirms which build a hosted instance is actually running. Without setting
     `version=`, FastMCP would fall back to the MCP SDK's own version, which says nothing about
     this server. Shared with the REST adapter (which reports the same string via /v3/version and
-    /openapi.json) through core.version.
+    /v3/openapi.json) through core.version.
     """
     return core_version.server_version()
 

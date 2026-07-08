@@ -25,7 +25,7 @@ upgrade).
 ## Run
 
 ```bash
-uv run idc-api                      # REST API → http://127.0.0.1:8000  (Swagger at /docs)
+uv run idc-api                      # REST API → http://127.0.0.1:8000  (Swagger at /v3/docs)
 uv run idc-mcp                      # MCP server over stdio (local; download enabled)
 uv run idc-mcp --http --port 8080   # MCP over streamable-http (hosted; download disabled)
 ```

@@ -116,15 +116,17 @@ signal to watch for "is someone abusing this" before reaching for either.
 
 ```bash
 URL=$(gcloud run services describe idc-api-v3 --region "$REGION" --format='value(status.url)')
-curl -s "$URL/health"; echo
+curl -s "$URL/v3/health"; echo
 curl -s "$URL/v3/version"; echo
-open "$URL/docs"   # Swagger UI
+open "$URL/v3/docs"   # Swagger UI
 ```
 
 > **Don't use `/healthz` as a health-check path on Cloud Run's default `*.run.app` domain.**
 > Google's front end reserves that exact path and returns its own generic 404 page for it
 > before the request ever reaches your container — a well-known Cloud Run gotcha (other
-> frameworks, e.g. Streamlit, have hit the same thing). The app exposes `/health` instead.
+> frameworks, e.g. Streamlit, have hit the same thing). The app's health check is `/v3/health`
+> (all REST routes live under `/v3` — see *Shared-domain path routing*), which also sidesteps any
+> reserved root path.
 
 ## 5. Updating for a new IDC release
 
@@ -168,7 +170,7 @@ The MCP endpoint is then `https://<service-url>/mcp` (note the `/mcp` path).
 >
 > The **REST** service reports the same software version with no handshake needed: `GET /v3/version`
 > returns `api_version` + `build`, and the combined string is also the OpenAPI `info.version` at
-> `/openapi.json` (and `server_version` at `GET /`).
+> `/v3/openapi.json` (and `server_version` at `GET /v3`).
 
 > **Host-header / DNS-rebinding protection.** The MCP streamable-HTTP transport ships with
 > DNS-rebinding protection that allow-lists the `Host` header to localhost only, which would
@@ -430,7 +432,7 @@ and `$REGION` for a tier are the same values its GitHub Environment uses):
 
 5. **Verify** — the same checks as the `*.run.app` URL, now on the real domain:
    ```bash
-   curl -s https://dev-api.canceridc.dev/health;    echo
+   curl -s https://dev-api.canceridc.dev/v3/health;  echo
    curl -s https://dev-api.canceridc.dev/v3/version; echo
    ```
    For the MCP service, map a domain to `idc-mcp-v3` the same way and test the `…/mcp` path.
@@ -447,3 +449,59 @@ load balancer's IP (not at Cloud Run directly):
    **global forwarding rule**.
 5. Point the domain's **A/AAAA** records at the reserved IP (for `cancer.gov`, file with **NCI**).
    The cert provisions once DNS resolves; then verify as in (A) step 5.
+
+### Shared-domain path routing (as deployed) + the glob gotcha
+
+Each tier serves **both** APIs on its one domain: the load balancer's URL map path-routes to two
+Cloud Run services. Verified on `dev-api.canceridc.dev` (2026-07):
+
+| Path | → backend (serverless NEG) |
+|---|---|
+| `/mcp`, `/mcp/*` | `idc-mcp-v3` (remote MCP endpoint) |
+| `/v3/*`          | `idc-api-v3` (REST API) |
+
+**Tell which backend a path reached from the `Server` response header** — this is the fastest way
+to check whether a routing change actually took effect:
+
+```bash
+curl -sI https://dev-api.canceridc.dev/v3/version | grep -i server   # want: Google Frontend
+```
+
+- `Server: Google Frontend` → the request reached **Cloud Run directly**. ✅ correct.
+- `Server: nginx` + a body of `{"code":5,"message":"Method does not exist.", … "detail":"service_control"}`
+  → the request is still going through the **legacy Cloud Endpoints / ESP** proxy (App Engine-era
+  leftover) that fronts the domain, and the path isn't in its stale service config. The target
+  state routes REST straight to the `idc-api-v3` NEG with **no ESP in the path**.
+
+> **⚠️ The glob gotcha — the whole REST surface must be under `/v3`.** Routing just `/v3/*` to the
+> REST NEG only works if *every* REST route is under `/v3`. It wasn't at first: the app also served
+> root-level `/`, `/health`, `/docs`, `/redoc`, `/openapi.json`, so a `/v3/*`-only glob left them on
+> the URL map's *default* backend (still the legacy ESP) — they returned `nginx` / "Method does not
+> exist" while `/v3/*` worked (the half-fixed state seen 2026-07: `/health` and `/docs` 404'd,
+> `/v3/version` didn't).
+>
+> **Resolved (2026-07): every REST route now lives under `/v3`** — `/v3` (landing), `/v3/health`,
+> `/v3/version`, `/v3/docs`, `/v3/redoc`, `/v3/openapi.json`, and nothing at the bare root
+> (`FastAPI(docs_url=…, redoc_url=…, openapi_url=…)` set to `/v3/…` + landing route at `/v3`; see
+> [rest/app.py](../src/idc_api/rest/app.py)). The previously-broken paths moved *into* the range the
+> `/v3/*` glob already routes, so **redeploying the app is enough — no further URL-map change is
+> needed**; the bare-root paths stay 404, which is now the intended behavior. MCP remains a sibling
+> at `/mcp`. **If you add a REST route, keep it under `/v3`** or this glob will strand it. (No Cloud
+> Run health-check impact: the deploys above set no HTTP probe, so the default TCP startup probe is
+> unaffected. Belt-and-suspenders option: also point the URL map's *default* backend at the
+> `idc-api-v3` NEG, so any stray non-`/v3` path still resolves instead of hitting the ESP.)
+
+#### Remote MCP over the shared domain — verified behavior
+
+`/mcp` is functional **end-to-end**, not just the handshake — verified on `dev-api.canceridc.dev`:
+`initialize`, `tools/list` (19 tools), and `tools/call get_idc_version` (real result) all succeed.
+It runs **stateless** (`stateless_http=True`) — no `Mcp-Session-Id`, no session affinity, so it
+autoscales like REST. Caveats:
+
+- **Downloads are disabled** on the hosted endpoint by design (manifests/URLs only); only the local
+  **stdio** MCP transfers files.
+- **`POST /mcp/`** (trailing slash) returns a **307** redirect to `/mcp` (method + body preserved) —
+  point clients at the no-slash `…/mcp`.
+- **Streaming / LB timeout:** stateless JSON tool calls return immediately, so the LB backend
+  timeout (~30s default) is moot today; if a long-running or server-streamed tool is ever added,
+  raise the backend-service timeout then.

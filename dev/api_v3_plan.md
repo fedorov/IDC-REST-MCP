@@ -244,7 +244,7 @@ general MCP guidance to treat all tool inputs as untrusted and apply defense in 
   return the same payload from the same inputs — guarantees the two surfaces stay in sync.
 - **SQL guard tests:** confirm non-SELECT, file reads, `httpfs`, and over-cap result sets
   are rejected; confirm timeout fires.
-- **REST:** `uvicorn` locally, exercise `/docs` (Swagger) + a few cohort/SQL calls.
+- **REST:** `uvicorn` locally, exercise `/v3/docs` (Swagger) + a few cohort/SQL calls.
 - **MCP:** run with the **MCP Inspector**, then wire the local stdio server into Claude
   Code/Desktop and run real prompts ("find breast MRI in IDC, show counts, give me a
   download command") — this is the parallel REST+MCP dev loop the project is built around.

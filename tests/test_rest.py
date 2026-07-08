@@ -19,8 +19,16 @@ def test_version_and_stats(client):
 def test_root_reports_server_version(client):
     from idc_api.core.version import server_version
 
-    root = client.get("/").json()
+    root = client.get("/v3").json()
     assert root["server_version"] == server_version()
+
+
+def test_all_routes_live_under_v3(client):
+    # Every REST route lives under /v3 so the hosting load balancer covers the surface with one
+    # `/v3/*` glob; the bare root is intentionally unrouted (MCP is a sibling at /mcp).
+    assert client.get("/v3/health").json() == {"status": "ok"}
+    assert client.get("/").status_code == 404
+    assert client.get("/health").status_code == 404
 
 
 def test_collections_and_detail(client):
@@ -83,7 +91,7 @@ def test_download_disabled_returns_501(client):
 def test_openapi_served(client):
     from idc_api.core.version import server_version
 
-    spec = client.get("/openapi.json").json()
+    spec = client.get("/v3/openapi.json").json()
     assert spec["info"]["title"] == "IDC API"
     # info.version is driven by the package/build version, not a hardcoded literal.
     assert spec["info"]["version"] == server_version()

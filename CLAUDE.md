@@ -14,7 +14,7 @@ backend-agnostic **core** library, two thin adapters (`rest/`, `mcp/`).
 uv venv --python 3.12
 uv pip install -e ".[dev]"
 uv run --directory . pytest tests -q        # run the test suite
-uv run idc-api                              # REST API → http://127.0.0.1:8000 (/docs)
+uv run idc-api                              # REST API → http://127.0.0.1:8000 (/v3/docs)
 uv run idc-mcp                              # MCP server over stdio
 ```
 
