@@ -35,10 +35,14 @@ EXPOSE 8080
 # Default: REST API. For the remote MCP server instead, override the command with:
 #   idc-mcp --http --host 0.0.0.0 --port 8080
 #
-# --proxy-headers + --forwarded-allow-ips '*': Cloud Run (and any HTTPS load balancer) terminates
-# TLS at the edge and forwards to the container over http with `X-Forwarded-Proto: https`. uvicorn
-# enables --proxy-headers by default but only trusts them from --forwarded-allow-ips (default
-# 127.0.0.1); the Cloud Run proxy isn't loopback, so without this the app thinks requests are http
+# --proxy-headers: Cloud Run (and any HTTPS load balancer) terminates TLS at the edge and forwards
+# to the container over http with `X-Forwarded-Proto: https`. uvicorn enables --proxy-headers by
+# default but only trusts forwarded headers from peers in FORWARDED_ALLOW_IPS (default 127.0.0.1);
+# the managed proxy isn't loopback, so without a wider allow-list the app treats requests as http
 # and emits http:// redirect Location headers (a protocol downgrade — e.g. the /v3/ -> /v3 307).
-# Trusting all is safe here: the managed front end is the only ingress and always sets the header.
-CMD ["sh", "-c", "uvicorn idc_api.rest.app:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips '*'"]
+# We default FORWARDED_ALLOW_IPS to '*' (safe here: the managed front end is the only ingress and
+# always sets the header) but leave it overridable — run the image standalone with a trusted proxy
+# restriction via e.g. `docker run -e FORWARDED_ALLOW_IPS=127.0.0.1 ...`.
+# `exec` makes uvicorn PID 1 so Cloud Run's SIGTERM reaches it directly for a graceful shutdown.
+ENV FORWARDED_ALLOW_IPS="*"
+CMD ["sh", "-c", "exec uvicorn idc_api.rest.app:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers"]
