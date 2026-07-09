@@ -20,6 +20,31 @@ dist/
 .vscode/
 .DS_Store
 
-# Secrets
+# Secrets — first line of defense only. GitHub push protection (rejects the push) and the
+# gitleaks CI job (fails the PR) are the backstops, since no filename list is exhaustive.
 .env
+.env.*
 *.env
+!.env.example
+.envrc
+
+# Cloud credentials. Deployer service-account keys are fetched per tier (see dev/deployment.md),
+# so they routinely land in a working tree — these are the names they land under.
+*-key.json
+*_key.json
+*-keys.json
+*-deployer.json
+gcp-*.json
+service-account*.json
+service_account*.json
+credentials.json
+client_secret*.json
+application_default_credentials.json
+
+# Private keys / certificates
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519

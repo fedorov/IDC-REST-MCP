@@ -36,8 +36,23 @@ exhaustion) rather than data disclosure. Full rationale and the guarded-SQL thre
   themselves, not sensitive data — the cap is about log-line hygiene (one pathological query
   can't inflate a line), not confidentiality. Client IPs are not logged at the application level
   (Cloud Run's own request log already has caller IP, correlatable by timestamp).
-- **CI checks** on every PR: `ruff` (lint), `bandit` (static security lint), `pip-audit`
-  (dependency CVEs), and the `tests` suite.
+- **CI checks** on every PR: `ruff` (lint + format), `bandit` (static security lint), `pip-audit`
+  (dependency CVEs), `gitleaks` (committed credentials), and the `tests` suite.
+- **Credential hygiene, in three layers.** The service itself holds no secrets, but the *deploy*
+  path does: each tier's deployer service-account JSON key. Those live in GitHub **Environment
+  secrets**, never in the repo — and three independent guards keep them out of it:
+  1. **Push protection** (GitHub secret scanning) rejects a push containing a recognized
+     credential *before* it reaches GitHub. This is the only guard that prevents rather than
+     detects. It does not cover pushes to forks.
+  2. **[gitleaks](.github/workflows/gitleaks.yml)** scans the full history on every PR, including
+     from forks, and flags generic private-key blocks and service-account JSON that provider
+     pattern-matching misses. Findings are redacted in the log (this repo's Actions logs are
+     public).
+  3. **`.gitignore`** covers the filenames deployer keys actually land under. It is the weakest
+     layer — a filename list is never exhaustive — and exists to catch the common `git add -A`.
+
+  If a credential is ever committed: **rotate it first.** Deleting the commit does not un-leak it;
+  the blob stays reachable and this repo is public. Purge from history afterwards, not instead.
 - **Non-root container** — `Dockerfile` drops to an unprivileged user before serving.
 
 ## Known residual risks (public deployment)

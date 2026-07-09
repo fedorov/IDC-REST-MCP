@@ -1,0 +1,65 @@
+name: Secret scan (gitleaks)
+
+# Scans the git history for committed credentials. This is defense-in-depth behind GitHub's
+# secret-scanning push protection, which rejects a push *before* the secret reaches GitHub:
+#   - push protection does not apply to pushes on a fork, so a fork PR can carry a leaked key
+#     into review; this job runs on those PRs.
+#   - push protection only knows provider patterns it recognizes; gitleaks also flags generic
+#     private-key blocks and service-account JSON, which is the shape of this project's
+#     deployer credentials (see dev/deployment.md).
+#
+# Deliberately NOT path-filtered — unlike ci.yml, which only runs when source changes. A secret
+# can be committed in any file, so every PR is scanned.
+#
+# `--redact` keeps matched secret material out of the Actions log, which is public on this repo.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitleaks-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GITLEAKS_VERSION: "8.30.1"
+  # sha256 of gitleaks_<version>_linux_x64.tar.gz from the release's checksums.txt
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history: a secret is a leak even if it was "removed" in a later commit, since
+          # the blob stays reachable. Shallow clones would scan only the tip.
+          fetch-depth: 0
+
+      - name: Install gitleaks (pinned + checksum-verified)
+        run: |
+          set -euo pipefail
+          TARBALL="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSLO "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${TARBALL}"
+          echo "${GITLEAKS_SHA256}  ${TARBALL}" | sha256sum -c -
+          tar -xzf "$TARBALL" gitleaks
+          ./gitleaks version
+
+      - name: Scan history
+        run: |
+          set -euo pipefail
+          # Exits non-zero when a leak is found, failing the check.
+          ./gitleaks git --redact --no-banner .
+
+      - name: What to do if this failed
+        if: failure()
+        run: |
+          echo "::error::A credential was found in the git history."
+          echo "Rotate the credential FIRST — assume it is compromised the moment it is pushed."
+          echo "Removing the commit does not un-leak it: the blob stays reachable, and this repo is public."
+          echo "Then purge it from history (git filter-repo) and force-push. See SECURITY.md."
