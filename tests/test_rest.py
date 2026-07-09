@@ -24,11 +24,24 @@ def test_root_reports_server_version(client):
 
 
 def test_all_routes_live_under_v3(client):
-    # Every REST route lives under /v3 so the hosting load balancer covers the surface with one
-    # `/v3/*` glob; the bare root is intentionally unrouted (MCP is a sibling at /mcp).
+    # Every versioned route lives under /v3; the only thing outside it is the root redirect.
     assert client.get("/v3/health").json() == {"status": "ok"}
-    assert client.get("/").status_code == 404
     assert client.get("/health").status_code == 404
+
+
+def test_root_redirects_to_docs(client):
+    r = client.get("/", follow_redirects=False)
+    # 307, not 301: the target is version-numbered and a permanent redirect would outlive /v3.
+    assert r.status_code == 307
+    assert r.headers["location"] == "/v3/docs"
+    assert client.get("/").status_code == 200  # and the target actually resolves
+
+
+def test_root_redirect_is_not_a_catch_all(client):
+    # Only `/` redirects. Every other unmatched path must still 404 — an MCP client probing
+    # /.well-known/… during auth discovery would misread a 200 HTML page as auth metadata.
+    for path in ("/zzz", "/.well-known/oauth-protected-resource", "/mcp"):
+        assert client.get(path, follow_redirects=False).status_code == 404, path
 
 
 def test_collections_and_detail(client):

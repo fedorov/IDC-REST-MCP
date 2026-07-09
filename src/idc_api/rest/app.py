@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Path, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.context import AppContext, get_context
@@ -162,9 +162,9 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
         version=server_version(),
         summary="LLM-first REST API for NCI Imaging Data Commons, backed by idc-index + DuckDB.",
         lifespan=lifespan,
-        # Every route — schema, docs, and health included — lives under the API_PREFIX (/v3) so
-        # the hosting load balancer routes the whole REST surface with one `/v3/*` glob (the MCP
-        # service is a sibling at /mcp). Nothing is served at the bare root. See dev/deployment.md
+        # Every versioned route — schema, docs, and health included — lives under the API_PREFIX
+        # (/v3), so a new major version can be served side by side without moving anything. The
+        # only route outside it is the bare-root redirect below. See dev/deployment.md
         # "Shared-domain path routing".
         docs_url=f"{API_PREFIX}/docs",
         redoc_url=f"{API_PREFIX}/redoc",
@@ -217,6 +217,20 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
         return app.state.ctx
 
     # --- meta ---
+    @app.get("/", include_in_schema=False)
+    def root_redirect():
+        """Send the bare domain to the interactive docs.
+
+        The hosting load balancer routes unmatched paths to this service, so `/` lands here
+        rather than 404ing; bare-domain traffic on an API host is overwhelmingly a human in a
+        browser, and `/v3` answers with JSON. Deliberately an *exact* match on `/` and not a
+        catch-all: every other unmatched path must keep 404ing, or the `/.well-known/…` probes
+        MCP clients make during auth discovery would answer 200 HTML and be misread as auth
+        metadata. 307, not 301 — the target is version-numbered, and a permanent redirect would
+        be cached past the life of /v3.
+        """
+        return RedirectResponse(f"{API_PREFIX}/docs", status_code=307)
+
     @app.get(API_PREFIX, tags=["meta"], summary="API root")
     def root():
         """Entry point for the API: returns the server and build version, and links to the

@@ -450,18 +450,24 @@ load balancer's IP (not at Cloud Run directly):
 5. Point the domain's **A/AAAA** records at the reserved IP (for `cancer.gov`, file with **NCI**).
    The cert provisions once DNS resolves; then verify as in (A) step 5.
 
-### Shared-domain path routing (as deployed) + the glob gotcha
+### Shared-domain path routing (as deployed)
 
 Each tier serves **both** APIs on its one domain: the load balancer's URL map path-routes to two
-Cloud Run services. Verified on `dev-api.canceridc.dev` (2026-07):
+Cloud Run services. Verified on `dev-api.canceridc.dev` and `testing-api.canceridc.dev` (2026-07):
 
 | Path | → backend (serverless NEG) |
 |---|---|
-| `/mcp`, `/mcp/*` | `idc-mcp-v3` (remote MCP endpoint) |
-| `/v3/*`          | `idc-api-v3` (REST API) |
+| `/mcp`, `/mcp/*`     | `idc-mcp-v3` (remote MCP endpoint) |
+| everything else (default) | `idc-api-v3` (REST API) |
 
-**Tell which backend a path reached from the `Server` response header** — this is the fastest way
-to check whether a routing change actually took effect:
+The REST service is the URL map's **default backend**, so it — not the load balancer — decides what
+every non-`/mcp` path does. That is why `/` (307 → `/v3/docs`), `/v3` (landing JSON), and an
+unmatched `/zzz` (`{"detail":"Not Found"}`) all answer from the app. **Keep new REST routes under
+`/v3/`** anyway: the prefix is what lets a future `/v4` be served alongside, and the root redirect is
+the one deliberate exception.
+
+**Tell which backend a path reached from the `Server` response header** — the fastest way to check
+whether a routing change took effect:
 
 ```bash
 curl -sI https://dev-api.canceridc.dev/v3/version | grep -i server   # want: Google Frontend
@@ -469,35 +475,18 @@ curl -sI https://dev-api.canceridc.dev/v3/version | grep -i server   # want: Goo
 
 - `Server: Google Frontend` → the request reached **Cloud Run directly**. ✅ correct.
 - `Server: nginx` + a body of `{"code":5,"message":"Method does not exist.", … "detail":"service_control"}`
-  → the request is still going through the **legacy Cloud Endpoints / ESP** proxy (App Engine-era
-  leftover) that fronts the domain, and the path isn't in its stale service config. The target
-  state routes REST straight to the `idc-api-v3` NEG with **no ESP in the path**.
+  → the request went through the **legacy Cloud Endpoints / ESP** proxy (App Engine-era leftover)
+  that used to front the domain. This should no longer happen on any tier; if it reappears, the URL
+  map's default backend has been pointed back at the ESP.
 
-> **⚠️ The glob gotcha — the whole REST surface must be under `/v3`.** Routing just `/v3/*` to the
-> REST NEG only works if *every* REST route is under `/v3`. It wasn't at first: the app also served
-> root-level `/`, `/health`, `/docs`, `/redoc`, `/openapi.json`, so a `/v3/*`-only glob left them on
-> the URL map's *default* backend (still the legacy ESP) — they returned `nginx` / "Method does not
-> exist" while `/v3/*` worked (the half-fixed state seen 2026-07: `/health` and `/docs` 404'd,
-> `/v3/version` didn't).
->
-> **Mostly resolved (2026-07): every REST route now lives under `/v3`** — `/v3` (landing),
-> `/v3/health`, `/v3/version`, `/v3/docs`, `/v3/redoc`, `/v3/openapi.json`, and nothing at the bare
-> root (`FastAPI(docs_url=…, redoc_url=…, openapi_url=…)` set to `/v3/…` + landing route at `/v3`;
-> see [rest/app.py](../src/idc_api/rest/app.py)). The previously-broken paths moved *into* the range
-> the `/v3/*` glob already routes, so a **redeploy fixed every functional endpoint under `/v3/…`
-> with no URL-map change**. The bare non-`/v3` paths (`/`, `/health`, …) stay 404 — intended. MCP
-> remains a sibling at `/mcp`. **If you add a REST route, keep it under `/v3/`** or this glob will
-> strand it. (No Cloud Run health-check impact: the deploys above set no HTTP probe, so the default
-> TCP startup probe is unaffected.)
->
-> **⚠️ Known limitation (deferred) — the bare `/v3` landing is unreachable on the hosted domain.**
-> `/v3/*` matches only paths *under* `/v3/`; the admin confirmed the LB, as configured, **does not
-> count a bare (trailing-slash-less) path in the match**, so `/v3` (no trailing slash) falls through
-> to the legacy-ESP default backend and 404s (`Server: nginx`), and `/v3/` 307-redirects onto it.
-> This affects only the landing page — every real endpoint is under `/v3/…` and works; use
-> `/v3/docs` or `/v3/version` as the entry points. Making bare `/v3` resolve needs an LB-side change
-> (an exact/prefix match on `/v3`, or pointing the URL map's *default* backend at the `idc-api-v3`
-> NEG); **left for later investigation.**
+> **Resolved (2026-07) — the `/v3/*` glob gotcha and the unreachable bare `/v3`.** The URL map once
+> routed only `/v3/*` to the REST NEG and left everything else on a default backend that was still
+> the legacy ESP. Two symptoms followed: root-level routes (`/health`, `/docs`, …) returned nginx
+> "Method does not exist", fixed by moving the whole REST surface under `/v3`; and bare `/v3` (no
+> trailing slash) fell through to the ESP and 404'd, since the glob matched only paths *under*
+> `/v3/`. Both are gone now that the **default backend is the `idc-api-v3` NEG** — bare `/v3`
+> returns 200 and there is no ESP in any path. Kept here because a URL-map regression would bring
+> the exact same symptoms back.
 
 #### Remote MCP over the shared domain — verified behavior
 
