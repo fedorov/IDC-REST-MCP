@@ -143,6 +143,10 @@ Two constraints follow from how the pipeline is built (see [dev/deployment.md](d
    `IDC_API_BUILD` only stamps the git SHA. Tagging `v3.0.0` on the same commit that shipped as
    `3.0.0b1` would redeploy an image that still reports `3.0.0b1` at `/v3/version`.
 
+   `promote.yml` guards this: on a `v*` tag it asserts `tag == "v" + pyproject version` and fails
+   before the reviewer gate if they disagree. So the tag can't lie about what prod will serve —
+   but it also means **you cannot tag a release without having bumped `pyproject.toml` first.**
+
 ### Steps
 
 1. **Bump and curate.** In one PR: set `version` in `pyproject.toml`, and in `CHANGELOG.md`

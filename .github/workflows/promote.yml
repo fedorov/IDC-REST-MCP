@@ -7,7 +7,8 @@ name: Promote (test / prod)
 #   - Push a v* tag             -> PROD: deploy the exact image TEST already validated, by digest,
 #       referencing TEST's registry directly (no rebuild, no copy). Gated by the `prod`
 #       Environment's required-reviewer rule. prod's deployer SA + Cloud Run service agent must
-#       have read on TEST's Artifact Registry.
+#       have read on TEST's Artifact Registry. The tag must equal "v" + pyproject.toml's version
+#       (checked below): no rebuild happens here, so the version is whatever test baked in.
 #
 # For the prod path, test's registry coordinates come from repo-level Variables (test's project
 # isn't in prod's Environment): TEST_PROJECT_ID (required), TEST_REGION / TEST_AR_REPO (optional).
@@ -89,6 +90,24 @@ jobs:
       build_label: ${{ steps.r.outputs.sha }}
       source_image: ${{ steps.r.outputs.image }}
     steps:
+      - uses: actions/checkout@v7
+
+      # The tag names the release, but the version the running server reports comes from
+      # pyproject.toml, baked into the image at build time. Prod redeploys test's existing digest
+      # and never rebuilds, so a tag that disagrees with the packaged version would deploy fine
+      # and quietly serve the wrong version at /v3/version. Fail here, before the reviewer gate.
+      - name: Verify the tag matches the packaged version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')
+          if [ "${TAG#v}" != "$VERSION" ]; then
+            echo "::error::Tag '${TAG}' does not match pyproject.toml version '${VERSION}'. The version is baked in when test builds the image, so bump pyproject.toml, promote that commit to test, then tag it. See CONTRIBUTING.md -> Releasing."
+            exit 1
+          fi
+          echo "Tag ${TAG} matches packaged version ${VERSION}."
+
       - id: r
         env:
           TEST_PROJECT: ${{ vars.TEST_PROJECT_ID }}
