@@ -29,7 +29,9 @@ both.
 - [`dev/architecture.md`](dev/architecture.md) — internal design (one core, two adapters).
 - [`dev/api_v3_plan.md`](dev/api_v3_plan.md) — full design rationale + SQL threat model.
 - [`dev/deployment.md`](dev/deployment.md) — Cloud Run deployment.
-- [`dev/developer_guide.md`](dev/developer_guide.md) — contributing / adding capabilities.
+- [`dev/developer_guide.md`](dev/developer_guide.md) — codebase tour / adding capabilities.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — branching, commits, changelog, versioning, releases.
+- [`CHANGELOG.md`](CHANGELOG.md) — what changed for callers, per release.
 - [`SECURITY.md`](SECURITY.md) — threat model, hardening in place, and how to report a
   vulnerability.
 
