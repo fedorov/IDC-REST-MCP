@@ -18,7 +18,7 @@ dependencies = [
     "pydantic-settings>=2.3",
     # REST adapter
     "fastapi>=0.139.0",
-    "uvicorn[standard]>=0.50.2",
+    "uvicorn[standard]>=0.51.0",
     # MCP adapter (official SDK; bundles FastMCP server API)
     "mcp>=1.28.1",
 ]
