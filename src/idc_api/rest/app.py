@@ -379,11 +379,12 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
         """List the tables available to the SQL endpoint: the main `index`, the collection,
         analysis, and version metadata tables, and the specialized indices — each named
         `<modality>_index` after the DICOM Modality it describes (`seg_index`: segmented anatomy
-        of SEG series; `ct`/`mr`/`pt_index`: acquisition parameters; `sm`/`ann`: microscopy),
-        plus contrast, volume-geometry, and clinical tables. Consult it before writing SQL, and
-        whenever a property you need (e.g. what a segmentation contains) is not a filterable
-        attribute — it may live in a specialized index. Per-collection clinical tables are listed
-        separately by `/clinical/tables`."""
+        of SEG series; `ct_index`, `mr_index`, `pt_index`: acquisition parameters; `sm_index`,
+        `ann_index`: microscopy), plus `contrast_index`, `volume_geometry_index`, and
+        `clinical_index`. Consult it before writing SQL, and whenever a property you need (e.g.
+        what a segmentation contains) is not a filterable attribute — it may live in a
+        specialized index. Per-collection clinical tables are listed separately by
+        `/clinical/tables`."""
         return C().query.list_tables()
 
     @app.get(
@@ -501,12 +502,11 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
         attributes from `/attributes` are a curated subset of `index`, so `/sql` is how you reach
         the rest: other `index` columns (e.g. `SeriesDescription`, `PatientAge`) and columns that
         live only in a specialized index (e.g. segmented anatomy in `seg_index`). The connection
-        is sandboxed: no writes, no file
-        or network access, one statement only. Get correct table and column names from `/tables`
-        and `/tables/{table}` first; the main table is `index`, and per-collection clinical
-        tables are in the `clinical` schema. The result carries a `truncated` flag — when `true`
-        you did not get every row, so narrow or aggregate the query, or raise `max_rows` (clamped
-        to a server ceiling) and re-check."""
+        is sandboxed: no writes, no file or network access, one statement only. Get correct table
+        and column names from `/tables` and `/tables/{table}` first; the main table is `index`,
+        and per-collection clinical tables are in the `clinical` schema. The result carries a
+        `truncated` flag — when `true` you did not get every row, so narrow or aggregate the
+        query, or raise `max_rows` (clamped to a server ceiling) and re-check."""
         return C().query.run_sql(req.sql, max_rows=req.max_rows)
 
     # --- viewer / citations / licenses ---

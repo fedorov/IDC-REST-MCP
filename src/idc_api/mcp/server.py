@@ -45,8 +45,9 @@ Work this way:
    get_table_schema before SQL. Do not guess values or column names.
 2. build_cohort for attribute filters; run_sql for relational/aggregate questions (read-only
    DuckDB; `index` plus specialized indices joined on SeriesInstanceUID and named for the
-   DICOM Modality they detail — seg_index: what anatomy a SEG segments; ct/mr/pt_index:
-   acquisition; sm/ann: microscopy; …). If a property isn't in list_attributes (e.g.
+   DICOM Modality they detail — seg_index: what anatomy a SEG segments; ct_index, mr_index,
+   pt_index: acquisition; sm_index, ann_index: microscopy; …). If a property isn't in
+   list_attributes (e.g.
    segmented anatomy), check list_tables before concluding it's unavailable. For clinical
    (non-imaging) attributes — staging, demographics, therapy — use list_clinical_tables, then
    get_clinical_table_schema / get_clinical_table to read the rows (or run_sql against
@@ -280,8 +281,9 @@ def get_attribute_values(attribute: str, limit: int = 50) -> dict:
 def list_tables() -> dict:
     """List the tables available to run_sql: the main `index`, collection/analysis/version
     metadata tables, and the specialized indices — named `<modality>_index` after the DICOM
-    Modality they describe (seg_index: segmented anatomy of SEG series; ct/mr/pt_index:
-    acquisition parameters; sm/ann: microscopy) plus contrast/volume_geometry/clinical.
+    Modality they describe (seg_index: segmented anatomy of SEG series; ct_index, mr_index,
+    pt_index: acquisition parameters; sm_index, ann_index: microscopy), plus contrast_index,
+    volume_geometry_index, and clinical_index.
     Call this before writing SQL, and whenever a property you need (e.g. what a segmentation
     contains) is not a filterable attribute — it may live in a specialized index. Per-collection
     clinical data tables are listed separately by list_clinical_tables (queried as
