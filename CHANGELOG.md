@@ -13,9 +13,8 @@ Refactors, CI, and formatting land in the git history, not here.
 
 ## [Unreleased]
 
-Nothing yet.
 
-## [3.0.0b1] — unreleased
+## [3.0.0b1] — 2026-07-13
 
 First public release of the v3 API: a rewrite that replaces the v1/v2 service with a single
 backend-agnostic core behind two thin adapters (REST + MCP), served from the `idc-index` Parquet
