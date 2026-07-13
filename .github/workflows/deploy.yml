@@ -165,7 +165,10 @@ jobs:
           curl -sf "$URL/v3/health"; echo
           curl -sf "$URL/v3/version"; echo
           # NCI policy requires HSTS on every response; fail the deploy if the header is gone.
-          curl -sfI "$URL/v3/health" | grep -i '^strict-transport-security:'
+          # No -f: -I sends HEAD, which FastAPI GET routes answer with 405 — but the middleware
+          # stamps the header on every response, and the header is all this line asserts (the
+          # GET above already proved the service healthy).
+          curl -sI "$URL/v3/health" | grep -i '^strict-transport-security:'
           {
             echo "### REST API deployed to ${{ inputs.environment }}"
             echo "- URL: $URL"
