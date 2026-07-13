@@ -13,12 +13,6 @@ Refactors, CI, and formatting land in the git history, not here.
 
 ## [Unreleased]
 
-### Added
-
-- **HSTS**: every REST and hosted-MCP response now carries a `Strict-Transport-Security` header
-  (NCI security policy). Max-age is configurable via `IDC_API_HSTS_MAX_AGE` — default one year;
-  dev/test deploys use 3600.
-
 
 ## [3.0.0b1] — 2026-07-13
 
@@ -52,6 +46,9 @@ served by a different backend and v3 lives only under `/v3/*`.
   the OpenAPI `info.version` and the MCP `initialize` handshake (`serverInfo.version`).
 - **Structured audit logging** — one JSON line per REST request and MCP tool call.
   `IDC_API_SQL_LOG_MODE` selects how the guarded SQL query is rendered (`snippet` or `hash`).
+- **HSTS**: every REST and hosted-MCP response carries a `Strict-Transport-Security` header
+  (NCI security policy). Max-age is configurable via `IDC_API_HSTS_MAX_AGE` — default one year;
+  dev/test deploys use 3600.
 
 [Unreleased]: https://github.com/ImagingDataCommons/IDC-REST-MCP/compare/v3.0.0b1...HEAD
 [3.0.0b1]: https://github.com/ImagingDataCommons/IDC-REST-MCP/releases/tag/v3.0.0b1
