@@ -181,6 +181,11 @@ jobs:
         run: |
           set -euo pipefail
           URL=$(gcloud run services describe idc-mcp-v3 --project "$PROJECT" --region "$REGION" --format='value(status.url)')
+          # HSTS must be on the MCP surface too. A bare GET to /mcp is not a valid MCP request
+          # (the transport wants a POST with an event-stream Accept), but the middleware adds
+          # the header to every response regardless of status — so probe without -f and only
+          # require the header.
+          curl -sI "$URL/mcp" | grep -i '^strict-transport-security:'
           {
             echo "### MCP service deployed to ${{ inputs.environment }}"
             echo "- URL: $URL/mcp"

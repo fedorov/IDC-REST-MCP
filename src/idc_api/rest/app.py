@@ -180,8 +180,11 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    # Added after CORS so it wraps it (last-added middleware is outermost): the HSTS header
-    # then lands on every response, including CORS preflights that short-circuit here.
+    # HSTS must stay *outside* CORS (added after it — later-added middleware wraps earlier), so
+    # the header also lands on CORS preflights, which CORSMiddleware answers without calling
+    # inward. The audit middleware below is added later still and ends up outermost; that's
+    # fine — it only logs and passes every response through. Guarded by a test that asserts
+    # the header on a preflight response.
     if settings.hsts_max_age > 0:
         app.add_middleware(HSTSMiddleware, max_age=settings.hsts_max_age)
 

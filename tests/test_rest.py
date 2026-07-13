@@ -53,6 +53,14 @@ def test_hsts_header_on_every_response(client):
     r = client.get("/", follow_redirects=False)
     assert r.headers["strict-transport-security"] == expected
     assert client.get("/zzz").headers["strict-transport-security"] == expected
+    # CORS preflights are answered by CORSMiddleware without calling inward, so this only
+    # passes while HSTSMiddleware stays outside CORS (see the ordering comment in app.py).
+    preflight = client.options(
+        "/v3/sql",
+        headers={"Origin": "https://example.com", "Access-Control-Request-Method": "POST"},
+    )
+    assert preflight.status_code == 200
+    assert preflight.headers["strict-transport-security"] == expected
 
 
 def test_collections_and_detail(client):
