@@ -13,7 +13,6 @@ Refactors, CI, and formatting land in the git history, not here.
 
 ## [Unreleased]
 
-Nothing yet.
 
 ## [3.0.0b1] — 2026-07-13
 
