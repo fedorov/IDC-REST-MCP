@@ -183,14 +183,6 @@ reads tables as `clinical.<table>`; they join to `index` on `dicom_patient_id = 
 the build shape changes like this, bump `duckdb_backend._BUILD_REVISION` so stale cache files
 aren't reused.
 
-## Walkthrough: add the BigQuery backend (Phase 3)
-
-1. Create `core/backend/bigquery_backend.py` implementing `QueryBackend` (`list_tables`,
-   `query`, `run_user_sql`) against `bigquery-public-data.idc_current.*`.
-2. Select it in [`AppContext`](../src/idc_api/core/context.py) (e.g. by a settings flag), or
-   compose a router backend that falls back to BigQuery for columns the local index lacks.
-3. Services and adapters are untouched — that's the point of the interface.
-
 ## Configuration
 
 Environment variables (prefix `IDC_API_`), defined in

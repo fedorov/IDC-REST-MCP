@@ -1,8 +1,7 @@
 """The backend interface that decouples services from the storage/query engine.
 
-Services depend only on ``QueryBackend``. The MVP implementation is DuckDB over the local
-idc-index Parquet; a future ``BigQueryBackend`` implements the same surface to reach full
-DICOM metadata / SR measurements without changing any service or adapter code.
+Services depend only on ``QueryBackend``. The only implementation is DuckDB over the local
+idc-index Parquet.
 """
 
 from __future__ import annotations

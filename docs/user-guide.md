@@ -359,6 +359,17 @@ Tool descriptions are prescriptive about *when* to call each one, and the server
 `idc://guide` resource with the same conceptual model as this document — so a capable agent can
 follow the recommended workflow without extra prompting.
 
+> **Relation to the [IDC Claude Skill](https://github.com/ImagingDataCommons/imaging-data-commons-skill).**
+> The skill is a *different access path* to the same data: it has the agent write and run Python
+> directly against `idc-index` inside a code-execution sandbox (Claude Code, or Claude
+> Desktop/claude.ai with code execution enabled). No server involved, and no network round trip
+> for metadata — but it only works where the client can execute Python locally. This MCP server
+> (and the REST API) instead expose the same `idc-index`/DuckDB index as callable tools/endpoints
+> over the network, for clients that can't or don't want to run code: remote-MCP connectors,
+> non-Python agent frameworks, or a curated tool surface instead of hand-written SQL. Both share
+> the same data model and the same "ground first" workflow — pick the skill when Python execution
+> is available, pick MCP/REST for network-only clients or the hosted, zero-setup path.
+
 ### Use it from Claude Desktop / Claude Code
 
 Add to your MCP client config (runs the server locally over stdio):
@@ -384,8 +395,12 @@ npx @modelcontextprotocol/inspector uv run idc-mcp
 
 ### Connecting to the hosted MCP server
 
-If the server is deployed over HTTP (the `--http` form above), point a remote-MCP client at
-`https://<service-url>/mcp` (note the `/mcp` path). The HTTP transport is **streamable-HTTP,
+The production service is public and unauthenticated at
+**`https://api.imaging.datacommons.cancer.gov/mcp`** — point any remote-MCP client (a custom/
+remote connector in Claude, or another spec-conformant client) at that URL directly; no API key
+or config file needed. If you deploy your own instance over HTTP (the `--http` form above),
+point the client at `https://<service-url>/mcp` (note the `/mcp` path) instead. The HTTP transport
+is **streamable-HTTP,
 configured stateless with plain-JSON responses** — each request is self-contained, so:
 
 - **Any spec-conformant remote-MCP client works**, and the service autoscales behind a plain
@@ -497,3 +512,6 @@ Environment variables (prefix `IDC_API_`):
 - [`dev/architecture.md`](../dev/architecture.md) — internal design (core + two adapters).
 - [`dev/deployment.md`](../dev/deployment.md) — Cloud Run deployment.
 - [`dev/api_v3_plan.md`](../dev/api_v3_plan.md) — design rationale + SQL threat model.
+- [IDC Claude Skill](https://github.com/ImagingDataCommons/imaging-data-commons-skill) — the
+  code-execution access path to the same data; see the callout in
+  [§3](#3-using-the-mcp-server-llm-agents) for how it relates to this MCP server.

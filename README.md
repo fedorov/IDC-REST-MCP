@@ -13,14 +13,39 @@ One backend-agnostic **core** library, two thin adapters over it:
   (Claude, etc.) can query IDC directly.
 
 Both surfaces share one core, so a capability is implemented and tested once and exposed in
-both.
+both. For a code-execution alternative to the same `idc-index` data — an agent writes and runs
+Python directly, no server involved — see the
+[IDC Claude Skill](https://github.com/ImagingDataCommons/imaging-data-commons-skill); the
+[User Guide](docs/user-guide.md#3-using-the-mcp-server-llm-agents) explains how the two relate.
 
-> **Status:** in active use. Discovery, cohort/manifest building, guarded read-only SQL, schema
-> discovery, viewer URLs, citations, and licenses — over both REST and MCP. SQL can query and
-> join the specialized indices (seg/ann/rtstruct, ct/mr/pt, slide microscopy, contrast/geometry)
-> and the per-collection clinical tables, all fetched at build time; local download runs in stdio
-> MCP mode. Still to come: an optional BigQuery backend (for per-segment detail, SR radiomics, and
-> private DICOM elements) and CDN caching (see [`dev/caching_and_cdn.md`](dev/caching_and_cdn.md)).
+> **Status:** **live in production** at `api.imaging.datacommons.cancer.gov`. Discovery,
+> cohort/manifest building, guarded read-only SQL, schema discovery, viewer URLs, citations, and
+> licenses — over both REST and MCP. SQL can query and join the specialized indices (seg/ann/rtstruct,
+> ct/mr/pt, slide microscopy, contrast/geometry) and the per-collection clinical tables, all fetched
+> at build time; local download runs in stdio MCP mode. Still to come: CDN caching (see
+> [`dev/caching_and_cdn.md`](dev/caching_and_cdn.md)). Per-segment detail, SR radiomics
+> measurements, and private DICOM elements are out of scope for this service — see the
+> [User Guide](docs/user-guide.md#1-concepts) for where to get them.
+
+## Use the live service
+
+No install needed — both surfaces are public and unauthenticated at
+`https://api.imaging.datacommons.cancer.gov`:
+
+- **REST** — Swagger UI at
+  [`/v3/docs`](https://api.imaging.datacommons.cancer.gov/v3/docs), OpenAPI at `/v3/openapi.json`.
+  ```bash
+  curl -s https://api.imaging.datacommons.cancer.gov/v3/cohort/manifest \
+    -H 'content-type: application/json' \
+    -d '{"filters": {"terms": {"Modality": ["MR"], "BodyPartExamined": ["BREAST"]}}, "page_size": 3}'
+  ```
+- **MCP** — add it as a remote/custom connector in Claude (or any spec-conformant MCP client) at
+  `https://api.imaging.datacommons.cancer.gov/mcp`. No API key, no config file — point the client
+  at the URL and ask it to find and describe an imaging cohort.
+
+See the [User Guide](docs/user-guide.md#connecting-to-the-hosted-mcp-server) for connector setup
+and the request/session details, and [`dev/deployment.md`](dev/deployment.md) for the deployment
+architecture (dev/test/prod tiers, DNS, autoscaling).
 
 ## Documentation
 

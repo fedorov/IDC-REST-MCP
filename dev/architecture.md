@@ -12,8 +12,9 @@ for *how to work in it* see [`dev/developer_guide.md`](developer_guide.md).
 2. **Lean on `idc-index`.** Reuse its bundled Parquet index + DuckDB engine; do not
    reimplement queries, citations, viewer URLs, or downloads from scratch. This avoids any
    BigQuery/webapp coupling and SQL-string surgery.
-3. **Swappable backend.** Today everything runs locally on Parquet+DuckDB; a BigQuery backend
-   must be addable later without touching services or adapters.
+3. **Swappable backend.** Storage sits behind a narrow `QueryBackend` interface so an
+   alternative engine could be substituted without touching services or adapters — not a
+   concrete plan, just a design constraint the current DuckDB backend already satisfies.
 4. **Safe by construction.** All data is public and read-only, so the query surface (including
    a raw SQL tool) is sandboxed at the engine level rather than guarded by fragile string
    filtering.
@@ -62,9 +63,9 @@ services know about storage. Its surface is intentionally tiny:
   the sandbox (single read-only SELECT/WITH, row cap, timeout).
 - `list_tables()`.
 
-[`duckdb_backend.py`](../src/idc_api/core/backend/duckdb_backend.py) is the MVP implementation
-(details below). A `BigQueryBackend` (Phase 3) implements the same three methods and nothing
-else changes.
+[`duckdb_backend.py`](../src/idc_api/core/backend/duckdb_backend.py) is the only implementation
+(details below); the interface exists so a different one could be swapped in without touching
+services or adapters, not because another backend is planned.
 
 ### `core/services/` — domain logic
 One module per capability area, each a stateless class wrapping a `QueryBackend` and returning

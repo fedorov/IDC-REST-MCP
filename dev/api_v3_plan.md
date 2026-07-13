@@ -8,7 +8,11 @@
 > single modules (`models.py` / `schema.py`), not packages; the cohort surface ships
 > `counts` + `build_manifest` (not the `get_patients` / `get_studies` / `get_series` sketched
 > below); and some tool names changed (`sql_query` → `run_sql`, the `build_manifest` /
-> `get_manifest` tools → `build_cohort` / `get_cohort_urls`). The **SQL threat model below is
+> `get_manifest` tools → `build_cohort` / `get_cohort_urls`). **The Phase 3 `BigQueryBackend`
+> below is not planned** — cost, security (broader GCP surface), and latency (network round
+> trip vs. in-process DuckDB) don't justify it; per-segment/SR-radiomics/private-element data
+> stays out of scope, with users pointed at `idc-index` + BigQuery directly (see the
+> [User Guide](../docs/user-guide.md#1-concepts)). The **SQL threat model below is
 > current** and remains the canonical reference for it.
 
 ## Context
