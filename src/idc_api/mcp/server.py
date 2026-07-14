@@ -411,7 +411,7 @@ def get_cohort_urls(
         "returned": len(urls),
         "truncated": truncated,
         "urls": urls,
-        "note": "Anonymous public URLs; append '/*' is a series prefix wildcard for s5cmd.",
+        "note": "Anonymous public URLs; append '/*' as a series prefix wildcard for s5cmd.",
     }
 
 
@@ -506,8 +506,9 @@ its payload — so a typical request flows Discovery → Cohort → Retrieval, w
    'unlimited' value — for bulk *series* use the cohort/manifest tools, not raw `run_sql` rows.
 4. *Get the data:* `get_cohort_urls` (public s3:// URLs; `source=gcs` reaches GCS via
    its S3-compatible endpoint, still s3://) or the ready-to-run
-   `idc` CLI commands already in the `build_cohort` response — both transfer directly from
-   S3/GCS with no server involved, and work the same whether this server is hosted or local.
+   `idc` CLI commands (`pip install idc-index`) already in the `build_cohort` response — both
+   transfer directly from S3/GCS with no server involved, and work the same whether this
+   server is hosted or local.
    This server never moves files itself; hand the user the commands/URLs to run.
 5. *Be a good citizen:* check `get_licenses` (CC BY vs CC BY-NC) and, when publishing, include
    `get_citations` output — both the per-dataset `citations` and `idc_acknowledgment` (the IDC
