@@ -1,6 +1,6 @@
-# IDC API
+# IDC REST API & MCP Server
 
-[![CI](https://github.com/fedorov/IDC-REST-MCP/actions/workflows/ci.yml/badge.svg)](https://github.com/fedorov/IDC-REST-MCP/actions/workflows/ci.yml)
+[![CI](https://github.com/ImagingDataCommons/IDC-REST-MCP/actions/workflows/ci.yml/badge.svg)](https://github.com/ImagingDataCommons/IDC-REST-MCP/actions/workflows/ci.yml)
 
 LLM-first **REST API** and **MCP server** for the [NCI Imaging Data Commons (IDC)](https://imaging.datacommons.cancer.gov/),
 backed by the [`idc-index`](https://github.com/ImagingDataCommons/idc-index) Parquet index
@@ -18,14 +18,37 @@ Python directly, no server involved — see the
 [IDC Claude Skill](https://github.com/ImagingDataCommons/imaging-data-commons-skill); the
 [User Guide](docs/user-guide.md#3-using-the-mcp-server-llm-agents) explains how the two relate.
 
-> **Status:** **live in production** at `api.imaging.datacommons.cancer.gov`. Discovery,
-> cohort/manifest building, guarded read-only SQL, schema discovery, viewer URLs, citations, and
-> licenses — over both REST and MCP. SQL can query and join the specialized indices (seg/ann/rtstruct,
-> ct/mr/pt, slide microscopy, contrast/geometry) and the per-collection clinical tables, all fetched
-> at build time. Still to come: CDN caching (see
+> **Status:** **live in production** at `api.imaging.datacommons.cancer.gov` — everything
+> listed below, over both REST and MCP. Still to come: CDN caching (see
 > [`dev/caching_and_cdn.md`](dev/caching_and_cdn.md)). Per-segment detail, SR radiomics
 > measurements, and private DICOM elements are out of scope for this service — see the
 > [User Guide](docs/user-guide.md#1-concepts) for where to get them.
+
+## What you can do
+
+Both surfaces expose the same capabilities (full reference in the
+[User Guide](docs/user-guide.md)):
+
+- **Discover** what's in IDC — collections, derived analysis results (segmentations,
+  annotations), filterable attributes and their valid values, headline stats.
+- **Build cohorts** — turn attribute filters into distinct patient/study/series counts, a page
+  of matching series, and a ready-to-use download payload.
+- **Retrieve** — public `s3://` URLs, a full `manifest.txt`, and `idc` CLI commands; files
+  transfer directly from public S3/GCS buckets, never through the server.
+- **Run SQL** — guarded read-only DuckDB queries against `index`, the specialized per-modality
+  indices (seg/ann/rtstruct, ct/mr/pt, slide microscopy, contrast/geometry), and per-collection
+  clinical tables — joins, aggregations, anything the structured filters can't express.
+- **Explore clinical data** — discover and read the per-collection clinical tables
+  (demographics, staging, therapies, outcomes) and join them to imaging.
+- **Publish responsibly** — viewer URLs for visual inspection, per-cohort license breakdowns
+  (CC BY vs CC BY-NC), and ready-to-use citations.
+
+**REST or MCP?** Same capabilities, different callers. Use **REST** when *you* write the code —
+scripts, apps, notebooks (plain HTTP/JSON, Swagger UI at `/v3/docs`). Use **MCP** when an *LLM
+agent* does the querying — the same capabilities as tools, with prescriptive descriptions and an
+`idc://guide` resource so agents follow the ground-first workflow on their own. See the User
+Guide's [query surfaces](docs/user-guide.md#the-query-surfaces-and-how-they-relate) for how the
+capabilities build on each other.
 
 ## Use the live service
 

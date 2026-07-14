@@ -92,6 +92,6 @@ service.
 ## Reporting a vulnerability
 
 Please use GitHub's private
-["Report a vulnerability"](https://github.com/fedorov/IDC-REST-MCP/security/advisories/new)
+["Report a vulnerability"](https://github.com/ImagingDataCommons/IDC-REST-MCP/security/advisories/new)
 flow so it isn't publicly disclosed before a fix ships. For non-sensitive hardening suggestions
 (e.g. a missing test case), a regular GitHub issue is fine.
