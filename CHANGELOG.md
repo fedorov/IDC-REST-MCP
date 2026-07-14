@@ -13,6 +13,11 @@ Refactors, CI, and formatting land in the git history, not here.
 
 ## [Unreleased]
 
+## [3.0.0b2] — 2026-07-14
+
+Beta iteration: drops the local-download surface (a beta contract change) and fixes
+`source=gcs` manifests.
+
 ### Removed
 
 - **The local-download surface: `POST /v3/download` (REST) and the `download_cohort` MCP tool**
@@ -67,5 +72,6 @@ served by a different backend and v3 lives only under `/v3/*`.
   (NCI security policy). Max-age is configurable via `IDC_API_HSTS_MAX_AGE` — default one year;
   dev/test deploys use 3600.
 
-[Unreleased]: https://github.com/ImagingDataCommons/IDC-REST-MCP/compare/v3.0.0b1...HEAD
+[Unreleased]: https://github.com/ImagingDataCommons/IDC-REST-MCP/compare/v3.0.0b2...HEAD
+[3.0.0b2]: https://github.com/ImagingDataCommons/IDC-REST-MCP/compare/v3.0.0b1...v3.0.0b2
 [3.0.0b1]: https://github.com/ImagingDataCommons/IDC-REST-MCP/releases/tag/v3.0.0b1
