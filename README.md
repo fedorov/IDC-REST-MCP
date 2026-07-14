@@ -22,8 +22,7 @@ Python directly, no server involved — see the
 > cohort/manifest building, guarded read-only SQL, schema discovery, viewer URLs, citations, and
 > licenses — over both REST and MCP. SQL can query and join the specialized indices (seg/ann/rtstruct,
 > ct/mr/pt, slide microscopy, contrast/geometry) and the per-collection clinical tables, all fetched
-> at build time; local download works on either surface when `IDC_API_ENABLE_LOCAL_DOWNLOAD` is on
-> (stdio MCP sets it automatically). Still to come: CDN caching (see
+> at build time. Still to come: CDN caching (see
 > [`dev/caching_and_cdn.md`](dev/caching_and_cdn.md)). Per-segment detail, SR radiomics
 > measurements, and private DICOM elements are out of scope for this service — see the
 > [User Guide](docs/user-guide.md#1-concepts) for where to get them.
