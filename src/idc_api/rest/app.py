@@ -503,10 +503,13 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
         summary="Cohort manifest (plain text)",
     )
     def cohort_manifest_text(req: ManifestTextRequest):
-        """Return a plain-text manifest of public download URLs (one `s3://` or `gs://` per
-        series) for a filtered cohort, up to `limit` lines. `source` is `aws` or `gcs`. These are
-        anonymous public URLs — fetch them with s5cmd/gsutil or the `idc` CLI. The response is
-        `text/plain`, one URL per line."""
+        """Return a plain-text manifest of public download URLs (one `s3://` per series,
+        compatible with `idc download-from-manifest`) for a filtered cohort, up to `limit`
+        lines. `source` is `aws` (default) or `gcs` — both use the `s3://` scheme (GCS is
+        reached via its S3-compatible endpoint, matching idc-index). These are anonymous public
+        URLs — feed the file to the `idc` CLI, or `s5cmd --no-sign-request` directly for
+        `source=aws` (add `--endpoint-url https://storage.googleapis.com` for `source=gcs`). The
+        response is `text/plain`, one URL per line."""
         text = C().manifest.manifest_text(req.filters, source=req.source, limit=req.limit)
         return PlainTextResponse(text)
 
@@ -588,11 +591,11 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
     # --- download (local mode only) ---
     @app.post(f"{API_PREFIX}/download", tags=["tools"], summary="Download cohort (local only)")
     def download(req: DownloadRequest):
-        """Download DICOM files for a selection to a local directory (via idc-index/s5cmd). This
-        works only when the API runs locally on the caller's machine; a hosted deployment returns
-        a clear error, in which case use `/cohort/manifest.txt` or the idc commands instead.
-        Start with `dry_run=true` to report the download size, then set `dry_run=false` to
-        transfer."""
+        """Download DICOM files for a selection to a local directory (via idc-index/s5cmd).
+        Prefer `/cohort/manifest.txt` or the idc CLI commands for direct S3/GCS transfer — this
+        endpoint just drives that same transfer for convenience, and works only when the API
+        runs locally on the caller's machine; a hosted deployment returns a clear error. Start
+        with `dry_run=true` to report the download size, then set `dry_run=false` to transfer."""
         return C().download.download(
             download_dir=req.download_dir,
             collection_id=req.collection_id,

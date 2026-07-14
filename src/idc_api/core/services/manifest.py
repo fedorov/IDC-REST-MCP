@@ -8,19 +8,26 @@ from ..backend.base import QueryBackend
 from ..filters import compile_filters
 from ..models import CohortFilters, DownloadInfo
 
-# AWS S3 bucket -> GCS bucket remap (fixed; from idc-index _replace_aws_with_gcp_buckets).
-_AWS_TO_GCS = {
+# GCS is reached via its S3-compatible interop endpoint, so URLs keep the s3:// scheme even
+# for source="gcs" — only the bucket name changes, and only for two buckets (mirrors
+# idc-index's _replace_aws_with_gcp_buckets exactly, so idc-index and idc download-from-manifest
+# handle either source the same way; the latter only recognizes s3:// lines in a manifest file).
+_AWS_TO_GCS_BUCKET = {
     "idc-open-data-two": "idc-open-idc1",
     "idc-open-data-cr": "idc-open-cr",
     # idc-open-data keeps the same bucket name on GCS (since IDC v20).
 }
 
+GCS_ENDPOINT_URL = "https://storage.googleapis.com"  # matches idc-index's gcp_endpoint_url
 
-def aws_url_to_gcs(aws_url: str) -> str:
-    """Convert an ``s3://bucket/path`` URL to its GCS ``gs://bucket/path`` equivalent."""
-    rest = aws_url[len("s3://") :] if aws_url.startswith("s3://") else aws_url
+
+def remap_bucket_for_gcs(s3_url: str) -> str:
+    """Remap an ``s3://bucket/path`` URL's bucket to its GCS-equivalent bucket, keeping the
+    ``s3://`` scheme — the URL is meant to be read against GCS's S3-compatible endpoint
+    (``GCS_ENDPOINT_URL``), not as a ``gs://`` URL."""
+    rest = s3_url[len("s3://") :] if s3_url.startswith("s3://") else s3_url
     bucket, _, path = rest.partition("/")
-    return f"gs://{_AWS_TO_GCS.get(bucket, bucket)}/{path}"
+    return f"s3://{_AWS_TO_GCS_BUCKET.get(bucket, bucket)}/{path}"
 
 
 class ManifestService:
@@ -48,7 +55,7 @@ class ManifestService:
         where, params = compile_filters(filters)
         urls, truncated = self._series_urls(where, params, limit)
         if source == "gcs":
-            urls = [aws_url_to_gcs(u) for u in urls]
+            urls = [remap_bucket_for_gcs(u) for u in urls]
         return urls, truncated
 
     def manifest_text(
@@ -87,7 +94,10 @@ class ManifestService:
             manifest_preview=preview,
             manifest_truncated=truncated,
             note=(
-                "URLs point to public AWS S3 (and GCS) buckets; no credentials needed. "
-                "Use s5cmd/gsutil with anonymous access, or the `idc` CLI."
+                "URLs point to public AWS S3 (and GCS) buckets; no credentials needed. Easiest: "
+                "the `idc` CLI commands above (also handles either cloud). Driving it yourself: "
+                "`s5cmd --no-sign-request` against these s3:// URLs for AWS; for GCS, get "
+                "source=gcs URLs from get_cohort_urls/manifest.txt (still s3:// — GCS's "
+                "S3-compatible endpoint) and add `--endpoint-url https://storage.googleapis.com`."
             ),
         )

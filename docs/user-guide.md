@@ -64,8 +64,8 @@ How they relate, in one paragraph: **Discovery** hands you the lay of the land *
 vocabulary* — the attribute names and valid values you'll filter on. **Cohort** turns a chosen
 combination of that vocabulary into distinct counts, a page of matching series, and a
 ready-to-use download payload (it reuses the **Retrieval** logic to build that payload).
-**Retrieval** is the download half on its own — public `s3://`/`gs://` URLs, a full
-`manifest.txt`, and `idc` CLI commands. **SQL** is the bypass: when your selection needs a
+**Retrieval** is the download half on its own — public `s3://` URLs, a full `manifest.txt`, and
+`idc` CLI commands. **SQL** is the bypass: when your selection needs a
 `GROUP BY`, a join, or an aggregation that structured cohort filters can't express, you write a
 read-only `SELECT` against `index` (and the specialized indices it joins to — see
 [What you can query](#what-you-can-query-tables-available-to-sql)). The side tools (viewer /
@@ -100,9 +100,9 @@ matching a joined condition"*) → **go straight to SQL**:
 2. **Query** — `run_sql('SELECT …')`. Select `series_aws_url` (or `SeriesInstanceUID`) if you
    want a manifest out of it.
 
-**Both paths then:** get the data (the returned `idc` commands / `manifest.txt`, or `download`
-locally), and **be a good citizen** — check `licenses` (CC BY vs CC BY-NC) and include
-`citations` when you publish.
+**Both paths then:** get the data — prefer the returned `idc` commands / `manifest.txt` (direct
+from S3/GCS; see [§4](#4-getting-the-data)) — and **be a good citizen** — check `licenses`
+(CC BY vs CC BY-NC) and include `citations` when you publish.
 
 > Orientation (`stats`, `list_collections`, `list_analysis_results`) helps you *discover* a
 > dataset, but it can't scope a relational question — skip it and go to SQL when you already
@@ -233,12 +233,12 @@ uv run idc-api          # http://127.0.0.1:8000  — Swagger UI at /v3/docs
 | `GET /v3/clinical/tables/{table}/rows?max_rows=` | Clinical table rows (capped) |
 | `POST /v3/cohort/counts` | Distinct counts for a filter (cheap) |
 | `POST /v3/cohort/manifest` | Counts + a page of series + download payload |
-| `POST /v3/cohort/manifest.txt` | Full manifest as `text/plain` (`s3://` or `gs://`) |
+| `POST /v3/cohort/manifest.txt` | Full manifest as `text/plain` (`s3://`; `source=gcs` reaches GCS's S3-compatible endpoint) |
 | `POST /v3/sql` | Guarded read-only SQL (DuckDB) |
 | `GET /v3/viewer-url` | OHIF/SLIM viewer link for a study/series |
 | `POST /v3/citations` | Citations for a cohort |
 | `POST /v3/licenses` | License breakdown for a cohort |
-| `POST /v3/download` | Local download (returns 501 unless enabled) |
+| `POST /v3/download` | Local download convenience (returns 501 unless enabled) — prefer `/cohort/manifest.txt` |
 
 ### Worked examples
 
@@ -429,8 +429,10 @@ command instead). Same tools, two behaviors.
 
 ## 4. Getting the data
 
-All series URLs point at **public AWS S3 and GCS buckets — no credentials needed.** There are
-three ways to retrieve, in rough order of convenience:
+**Recommended: get a manifest, then pull the files directly from S3/GCS.** All series URLs
+point at **public AWS S3 and GCS buckets — no credentials needed** — so the transfer never
+goes through the API server, works the same against the hosted or a local instance, and scales
+to whole collections. Two ways to do it:
 
 1. **Whole collection** — the simplest path; `cohort/manifest`'s download payload emits it for
    you when your filter is a single `collection_id`:
@@ -442,13 +444,21 @@ three ways to retrieve, in rough order of convenience:
    ```bash
    idc download-from-manifest idc_manifest.txt --download-dir ./idc-data
    ```
-   You can also use the raw `s3://`/`gs://` URLs with `s5cmd` / `gsutil` (anonymous access).
-3. **Local download mode** — `POST /v3/download` (REST) or `download_cohort` (MCP) transfers
-   files directly, but **only when the server runs on your machine**. Hosted deployments
-   disable it and return a manifest instead. Start with `dry_run` to report size, confirm, then
-   run for real.
+   You can also drive the raw URLs yourself with `s5cmd --no-sign-request` (anonymous access).
+   Manifest/URL requests take a `source` of `aws` (default) or `gcs` — both give you `s3://`
+   URLs, since GCS is reached through its S3-compatible endpoint rather than a `gs://` URL
+   (this matches `idc-index`, and is why `idc download-from-manifest` only recognizes `s3://`
+   lines). For `source=gcs`, add `--endpoint-url https://storage.googleapis.com` to `s5cmd`.
 
 Install the CLI with `pip install idc-index` (provides the `idc` command).
+
+**Local download mode** — `POST /v3/download` (REST) or `download_cohort` (MCP) drives that
+same `idc-index`/s5cmd transfer for you as a convenience, but it works **only when the server
+itself runs on your machine** (hosted deployments return a clear error instead). It doesn't
+move data any faster than options 1–2 above, so prefer those for bulk transfers or when
+scripting against the hosted service; reach for this only when you're already running the
+server locally and want the tool/endpoint to do the transfer for you. Start with `dry_run` to
+report size, confirm, then run for real.
 
 ---
 

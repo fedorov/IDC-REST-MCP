@@ -13,6 +13,12 @@ Refactors, CI, and formatting land in the git history, not here.
 
 ## [Unreleased]
 
+### Fixed
+
+- `get_cohort_urls` / `POST /v3/cohort/manifest.txt` with `source=gcs` now return `s3://` URLs
+  (GCS's S3-compatible endpoint) instead of `gs://` URLs. This matches how `idc-index` itself
+  reaches GCS, and fixes a real breakage: `idc download-from-manifest` only recognizes `s3://`
+  lines in a manifest file, so a saved `gs://` manifest silently downloaded nothing.
 
 ## [3.0.0b1] — 2026-07-13
 
