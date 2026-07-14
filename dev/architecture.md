@@ -10,7 +10,7 @@ for *how to work in it* see [`dev/developer_guide.md`](developer_guide.md).
    must be exposable as a well-described MCP tool *and* an HTTP endpoint with no duplicated
    logic.
 2. **Lean on `idc-index`.** Reuse its bundled Parquet index + DuckDB engine; do not
-   reimplement queries, citations, viewer URLs, or downloads from scratch. This avoids any
+   reimplement queries, citations, viewer URLs, or manifests from scratch. This avoids any
    BigQuery/webapp coupling and SQL-string surgery.
 3. **Swappable backend.** Storage sits behind a narrow `QueryBackend` interface so an
    alternative engine could be substituted without touching services or adapters — not a
@@ -81,7 +81,6 @@ Pydantic models:
 | `ViewerService` | [viewer.py](../src/idc_api/core/services/viewer.py) | OHIF/SLIM viewer URLs |
 | `CitationsService` | [citations.py](../src/idc_api/core/services/citations.py) | DOI-based citations |
 | `LicenseService` | [licenses.py](../src/idc_api/core/services/licenses.py) | license breakdown |
-| `DownloadService` | [download.py](../src/idc_api/core/services/download.py) | local-only file transfer via idc-index |
 
 ### `core/models.py` — the shared contract
 [models.py](../src/idc_api/core/models.py) holds the Pydantic request/response models returned
@@ -179,13 +178,12 @@ Full threat model and primary-source references (OWASP, DuckDB Securing guide) a
 | | REST API | MCP — local (stdio) | MCP — hosted (http) |
 |---|---|---|---|
 | Runs | hosted (Cloud Run) | on the user's machine | hosted |
-| Filesystem access to caller | no | **yes** | no |
-| `download_cohort` / `POST /download` | 501 (disabled) | performs real transfer via idc-index | disabled |
-| Data retrieval | manifest + URLs + `idc` command | real download **or** manifest | manifest + URLs |
+| Data retrieval | manifest + URLs + `idc` command | manifest + URLs + `idc` command | manifest + URLs + `idc` command |
 
-`main()` in [`mcp/server.py`](../src/idc_api/mcp/server.py) flips
-`settings.enable_local_download` on for stdio. `DownloadService.available()` reads that flag at
-call time.
+Retrieval is deliberately **manifests/URLs only** in every mode: all IDC buckets are public, so
+the caller transfers directly from S3/GCS (`idc` CLI / s5cmd) — strictly faster than proxying
+bytes through the service, and identical behavior local or hosted. (A local-only download
+endpoint/tool existed pre-3.0.0 and was removed in beta; see CHANGELOG.)
 
 The hosted HTTP transport is configured **stateless** (`stateless_http=True`,
 `json_response=True` on the `FastMCP(...)` constructor) so each request is self-contained and

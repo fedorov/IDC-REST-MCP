@@ -123,29 +123,6 @@ class CitationsRequest(BaseModel):
     citation_format: str = "apa"
 
 
-class DownloadRequest(BaseModel):
-    model_config = ConfigDict(
-        json_schema_extra={
-            "examples": [
-                {
-                    "download_dir": "/data/idc",
-                    "collection_id": ["nlst"],
-                    "dry_run": True,
-                    "source_bucket_location": "aws",
-                }
-            ]
-        }
-    )
-
-    download_dir: str
-    collection_id: list[str] | None = None
-    patientId: list[str] | None = None
-    studyInstanceUID: list[str] | None = None
-    seriesInstanceUID: list[str] | None = None
-    dry_run: bool = False
-    source_bucket_location: str = "aws"
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Build the DuckDB backend at startup so the first request is fast.
@@ -587,24 +564,6 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
         to check whether the data is commercial-friendly (CC BY) or non-commercial only
         (CC BY-NC) before reuse."""
         return C().licenses.get_licenses(filters)
-
-    # --- download (local mode only) ---
-    @app.post(f"{API_PREFIX}/download", tags=["tools"], summary="Download cohort (local only)")
-    def download(req: DownloadRequest):
-        """Download DICOM files for a selection to a local directory (via idc-index/s5cmd).
-        Prefer `/cohort/manifest.txt` or the idc CLI commands for direct S3/GCS transfer — this
-        endpoint just drives that same transfer for convenience, and works only when the API
-        runs locally on the caller's machine; a hosted deployment returns a clear error. Start
-        with `dry_run=true` to report the download size, then set `dry_run=false` to transfer."""
-        return C().download.download(
-            download_dir=req.download_dir,
-            collection_id=req.collection_id,
-            patientId=req.patientId,
-            studyInstanceUID=req.studyInstanceUID,
-            seriesInstanceUID=req.seriesInstanceUID,
-            dry_run=req.dry_run,
-            source_bucket_location=req.source_bucket_location,
-        )
 
     return app
 

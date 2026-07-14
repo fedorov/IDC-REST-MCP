@@ -198,7 +198,6 @@ Environment variables (prefix `IDC_API_`), defined in
 | `SQL_TIMEOUT_SECONDS` | 30 | Statement timeout |
 | `DEFAULT_PAGE_SIZE` / `MAX_PAGE_SIZE` | 100 / 5000 | Manifest paging |
 | `MANIFEST_HARD_CAP` | 100000 | Max series a single manifest enumerates |
-| `ENABLE_LOCAL_DOWNLOAD` | false | Allow real downloads (stdio MCP sets this) |
 | `CORS_ALLOW_ORIGINS` / `HOST` / `PORT` | `["*"]` / 127.0.0.1 / 8000 | REST serving |
 | `SQL_LOG_MODE` / `SQL_LOG_CHARS` | snippet / 200 | How `run_sql`/`POST /v3/sql` renders in the audit log: `snippet` (first `SQL_LOG_CHARS` chars) or `hash` (a short digest, no query text) |
 | `BUILD` | (unset) | Deploy stamp appended to the MCP `serverInfo.version` |

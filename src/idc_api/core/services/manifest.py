@@ -1,6 +1,6 @@
 """Manifest generation: public series URLs (AWS + GCS), s5cmd-style manifest text, and
-ready-to-run ``idc`` CLI commands for a cohort. The service never moves bytes — local
-download lives in ``download.py`` (MCP local mode only)."""
+ready-to-run ``idc`` CLI commands for a cohort. The service never moves bytes — callers
+download directly from the public S3/GCS buckets (`idc` CLI / s5cmd)."""
 
 from __future__ import annotations
 

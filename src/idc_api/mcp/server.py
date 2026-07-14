@@ -7,8 +7,11 @@ tool selection on current LLMs). Discovery tools (``list_attributes``, ``get_att
 columns/values instead of guessing.
 
 Transports:
-  * stdio (default) — runs locally on the user's machine; ``download_cohort`` can fetch files.
-  * streamable-http (``--http``) — hosted/shared; download is disabled (manifests only).
+  * stdio (default) — runs locally on the user's machine.
+  * streamable-http (``--http``) — hosted/shared.
+
+Retrieval is manifests/URLs only on both transports: data transfer happens directly from the
+public S3/GCS buckets (``idc`` CLI / s5cmd), never through this server.
 """
 
 from __future__ import annotations
@@ -55,9 +58,9 @@ Work this way:
    (non-imaging) attributes — staging, demographics, therapy — use list_clinical_tables, then
    get_clinical_table_schema / get_clinical_table to read the rows (or run_sql against
    `clinical.<table>`).
-3. IDC is large (100+ TB) — always report counts/size_TB and warn before any download. Prefer
-   get_cohort_urls / the returned `idc` commands — direct S3/GCS transfer, no server involved.
-   download_cohort only drives that same transfer, and only when the server runs locally.
+3. IDC is large (100+ TB) — always report counts/size_TB and warn before any download. To get
+   data, use get_cohort_urls / the returned `idc` commands — direct S3/GCS transfer from public
+   buckets, no server involved.
 Cite with get_citations (per-dataset citations plus the IDC paper to acknowledge IDC itself);
 respect get_licenses (CC-BY vs CC-BY-NC). See `idc://guide` for the data model, the full tool
 list, and join examples."""
@@ -455,33 +458,6 @@ def get_licenses(terms: dict | None = None, ranges: dict | None = None) -> dict:
     return ctx.licenses.get_licenses(f).model_dump(mode="json")
 
 
-@mcp.tool()
-@guard
-def download_cohort(
-    download_dir: str,
-    collection_id: list[str] | None = None,
-    patientId: list[str] | None = None,
-    studyInstanceUID: list[str] | None = None,
-    seriesInstanceUID: list[str] | None = None,
-    dry_run: bool = True,
-    source: str = "aws",
-) -> dict:
-    """Download DICOM files for a selection to a local directory (via idc-index/s5cmd). Prefer
-    get_cohort_urls / the idc commands for direct S3/GCS transfer — this tool just drives that
-    same transfer for convenience, and only works when this MCP server runs locally on the
-    user's machine; otherwise it returns a clear error. Start with dry_run=True to report the
-    size, confirm with the user, then dry_run=False."""
-    return ctx.download.download(
-        download_dir=download_dir,
-        collection_id=collection_id,
-        patientId=patientId,
-        studyInstanceUID=studyInstanceUID,
-        seriesInstanceUID=seriesInstanceUID,
-        dry_run=dry_run,
-        source_bucket_location=source,
-    )
-
-
 # --- resources ----------------------------------------------------------------------------
 
 _GUIDE = """\
@@ -500,7 +476,7 @@ not nested under one). The main table is `index` (one row per *series*). IDC is 
   names + valid values) you filter on.
 - *Cohort* (`build_cohort`) — turn a chosen combination of that vocabulary into distinct
   counts + a sample of series + a download payload.
-- *Retrieval* (`get_cohort_urls`, `download_cohort`) — the download half: public URLs / files.
+- *Retrieval* (`get_cohort_urls`) — the download half: public URLs for direct S3/GCS transfer.
 - *SQL* (`list_tables`, `get_table_schema`, `run_sql`) — the escape hatch for anything
   `build_cohort` can't express (GROUP BY, joins, custom aggregations).
 - *Clinical* (`list_clinical_tables`, `get_clinical_table_schema`, `get_clinical_table`) —
@@ -528,12 +504,11 @@ its payload — so a typical request flows Discovery → Cohort → Retrieval, w
    `truncated=false` means the result is complete; `true` means raise the limit and re-check (or
    narrow/aggregate). `run_sql`'s `max_rows` is clamped to a server ceiling, so there is no
    'unlimited' value — for bulk *series* use the cohort/manifest tools, not raw `run_sql` rows.
-4. *Get the data:* prefer `get_cohort_urls` (public s3:// URLs; `source=gcs` reaches GCS via
+4. *Get the data:* `get_cohort_urls` (public s3:// URLs; `source=gcs` reaches GCS via
    its S3-compatible endpoint, still s3://) or the ready-to-run
    `idc` CLI commands already in the `build_cohort` response — both transfer directly from
    S3/GCS with no server involved, and work the same whether this server is hosted or local.
-   `download_cohort` just drives that same transfer for convenience, and only works when the
-   server itself runs on the user's machine (hosted deployments reject it).
+   This server never moves files itself; hand the user the commands/URLs to run.
 5. *Be a good citizen:* check `get_licenses` (CC BY vs CC BY-NC) and, when publishing, include
    `get_citations` output — both the per-dataset `citations` and `idc_acknowledgment` (the IDC
    paper, https://doi.org/10.1148/rg.230180) to acknowledge IDC itself.
@@ -669,8 +644,6 @@ def main() -> None:
             log_level=mcp.settings.log_level.lower(),
         )
     else:
-        # Local stdio mode: the server is on the user's machine, so enable real downloads.
-        ctx.settings.enable_local_download = True
         mcp.run(transport="stdio")
 
 

@@ -8,7 +8,6 @@ from .citations import CitationsService
 from .clinical import ClinicalService
 from .cohort import CohortService
 from .discovery import DiscoveryService
-from .download import DownloadService
 from .licenses import LicenseService
 from .manifest import ManifestService
 from .query import QueryService
@@ -19,7 +18,6 @@ __all__ = [
     "ClinicalService",
     "CohortService",
     "DiscoveryService",
-    "DownloadService",
     "LicenseService",
     "ManifestService",
     "QueryService",

@@ -44,11 +44,3 @@ class QueryTimeoutError(IDCAPIError):
 class ResultTooLargeError(IDCAPIError):
     code = "result_too_large"
     status = 400
-
-
-class UnsupportedOperationError(IDCAPIError):
-    """The capability exists but is disabled in this deployment mode (e.g. local download
-    on a hosted server)."""
-
-    code = "unsupported_operation"
-    status = 501

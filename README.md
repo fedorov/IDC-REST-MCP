@@ -79,8 +79,8 @@ needed.
 
 ```bash
 uv run idc-api                                       # REST API → http://127.0.0.1:8000 (Swagger at /v3/docs)
-uv run idc-mcp                                       # MCP server, stdio (local) — can also download files
-uv run idc-mcp --http --host 0.0.0.0 --port 8080     # MCP server, hosted/shared (manifests only)
+uv run idc-mcp                                       # MCP server, stdio (local)
+uv run idc-mcp --http --host 0.0.0.0 --port 8080     # MCP server, hosted/shared
 ```
 
 Quick taste — build a breast-MRI cohort over REST:

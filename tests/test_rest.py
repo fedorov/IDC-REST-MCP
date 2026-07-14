@@ -137,12 +137,11 @@ def test_sql_engine_error_is_a_clean_400(client):
     assert "no_such_column" in err["message"]
 
 
-def test_download_disabled_returns_501(client):
-    r = client.post(
-        "/v3/download", json={"download_dir": "/tmp/x", "collection_id": ["rider_pilot"]}
-    )
-    assert r.status_code == 501
-    assert r.json()["error"]["code"] == "unsupported_operation"
+def test_download_endpoint_removed(client):
+    # Retrieval is manifests/URLs only: data transfers directly from the public S3/GCS
+    # buckets, never through the API. The local-download endpoint was removed in beta.
+    r = client.post("/v3/download", json={"download_dir": "/tmp/x"})
+    assert r.status_code == 404
 
 
 def test_openapi_served(client):

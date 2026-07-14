@@ -42,6 +42,10 @@ open; **no authentication** is required of callers.
   the MCP server **in local (stdio) mode** can additionally perform the real download via
   `idc-index`. Hosted/remote MCP behaves like REST (manifests only). No server-side
   staging/zipping (collections reach TBs).
+  *Superseded during beta:* the local-download surface (`POST /v3/download` /
+  `download_cohort`) was removed before 3.0.0 — a tool that exists but errors on the
+  dominant hosted deployment misled agents, and direct S3/GCS transfer (all buckets are
+  public) is strictly better. Retrieval is manifests/URLs only in every mode; see CHANGELOG.
 - **MVP scope:** **Core radiology + discovery** and **Viewer URLs + citations + licenses**.
   Specialized indices (ct/mr/pt, seg/ann/rtstruct, sm) and clinical data are later phases.
 
@@ -67,7 +71,6 @@ src/idc_api/
       viewer.py          # OHIF/SLIM viewer URLs
       citations.py       # DOI-based citations (APA/BibTeX/CSL/Turtle)
       licenses.py        # license breakdown for a selection
-      download.py        # LOCAL-ONLY: real file transfer via idc-index/s5cmd
     models/              # Pydantic request/response models = the shared contract
     schema/              # index column metadata, filterable-attribute + filter defs
   rest/                  # FastAPI app: routers are ~10-line wrappers over services
@@ -86,8 +89,7 @@ reuse, rather than rebuild:
   all ~16 indices).
 - `IDCClient` methods to wrap directly: `get_idc_version()`, `indices_overview` /
   `get_index_schema()` (schema discovery), `get_viewer_URL()`, `citations_from_selection()`
-  (+ `CITATION_FORMAT_*`), `download_from_selection()` / `download_dicom_series()` (local
-  download), `fetch_index()` (later phases).
+  (+ `CITATION_FORMAT_*`), `fetch_index()` (later phases).
 - **Do not** reuse `IDCClient`'s single shared DuckDB connection for serving — DuckDB
   connections aren't thread-safe. Instead `duckdb_backend.py` opens its own **read-only**
   connection over the same Parquet and hands out per-request cursors (see Safety).
@@ -122,8 +124,8 @@ No forked code, no SQL string surgery, no webapp dependency, no shared-secret to
 
 **Retrieval**
 - `get_manifest` — s5cmd manifest + public https URLs (AWS+GCS) + `idc download` command.
-- `download_cohort` — **MCP local mode only**; performs the transfer via `idc-index`.
-  Absent/disabled on the hosted REST + remote MCP surface.
+- `download_cohort` — *planned as MCP-local-only, then removed during beta* (see the
+  superseded note under *Decisions locked with the user*).
 
 ## LLM-first details (apply throughout)
 - **Prescriptive tool descriptions** — every MCP tool says *when to call it*, not just what
@@ -235,7 +237,7 @@ general MCP guidance to treat all tool inputs as untrusted and apply defense in 
   guarded `sql_query` + schema discovery + viewer/citations/licenses + manifest/URLs.
   Both REST and MCP. Cloud Run deploy + local stdio MCP entrypoint.
 - **Phase 2:** specialized indices (ct/mr/pt/contrast/volume_geometry, seg/ann/rtstruct,
-  sm/sm_instance) as tables + targeted tools; local `download_cohort`; CDN caching
+  sm/sm_instance) as tables + targeted tools; CDN caching
   (see [caching_and_cdn.md](caching_and_cdn.md)); generated client SDK + examples.
 - **Phase 3:** `BigQueryBackend` behind the same interface for full DICOM metadata,
   per-segment anatomy, and SR radiomics/qualitative measurements; clinical index + tables.

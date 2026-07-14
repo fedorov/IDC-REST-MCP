@@ -13,6 +13,17 @@ Refactors, CI, and formatting land in the git history, not here.
 
 ## [Unreleased]
 
+### Removed
+
+- **The local-download surface: `POST /v3/download` (REST) and the `download_cohort` MCP tool**
+  (beta contract change). Both only worked when the server ran on the caller's own machine and
+  errored everywhere else — on the hosted deployment (the common case) the tool's mere presence
+  misled agents into calling it. Downloading through the server is also never the right path:
+  every IDC bucket is public, so direct S3/GCS transfer is strictly more efficient. Retrieval is
+  now manifests/URLs only on every surface — use `get_cohort_urls` / `POST /v3/cohort/manifest.txt`
+  or the ready-to-run `idc` CLI commands in the `build_cohort` response. The
+  `IDC_API_ENABLE_LOCAL_DOWNLOAD` config variable is gone with it.
+
 ### Fixed
 
 - `get_cohort_urls` / `POST /v3/cohort/manifest.txt` with `source=gcs` now return `s3://` URLs

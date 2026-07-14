@@ -29,9 +29,10 @@ async def test_tools_registered(server):
         "get_viewer_url",
         "get_citations",
         "get_licenses",
-        "download_cohort",
     }
     assert expected <= names
+    # Removed in beta: retrieval is manifests/URLs only, so no local-download tool.
+    assert "download_cohort" not in names
 
 
 async def test_tool_descriptions_are_prescriptive(server):

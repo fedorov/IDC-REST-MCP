@@ -10,7 +10,6 @@ from .services import (
     ClinicalService,
     CohortService,
     DiscoveryService,
-    DownloadService,
     LicenseService,
     ManifestService,
     QueryService,
@@ -30,7 +29,6 @@ class AppContext:
         self.viewer = ViewerService(self.backend)
         self.citations = CitationsService(self.backend)
         self.licenses = LicenseService(self.backend)
-        self.download = DownloadService(self.backend, self.settings)
 
     def close(self) -> None:
         self.backend.close()

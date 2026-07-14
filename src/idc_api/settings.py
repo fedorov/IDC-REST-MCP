@@ -48,11 +48,6 @@ class Settings(BaseSettings):
     # every redeploy, making it possible to confirm which build a hosted instance is running.
     build: str | None = None
 
-    # --- Deployment mode ---
-    # True only when the MCP server runs locally (stdio) on the user's machine, where it may
-    # actually download files. Hosted REST / remote MCP keep this False (manifests only).
-    enable_local_download: bool = False
-
     # --- MCP HTTP transport security ---
     # The MCP streamable-HTTP transport has DNS-rebinding protection that allow-lists the Host
     # header (localhost-only by default), which rejects a hosted domain (e.g. Cloud Run) with

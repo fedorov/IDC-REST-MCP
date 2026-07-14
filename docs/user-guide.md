@@ -56,7 +56,7 @@ understanding, because picking the right one makes everything else easy:
 |---|---|---|---|
 | **Discovery** | "What exists? What can I filter on?" | `GET /v3/version`, `/v3/stats`, `/v3/collections`, `/v3/collections/{id}`, `/v3/analysis_results`, `/v3/attributes`, `/v3/attributes/{attr}/values` | `get_idc_version`, `get_stats`, `list_collections`, `get_collection`, `list_analysis_results`, `list_attributes`, `get_attribute_values` |
 | **Cohort** | "How big is *my* selection, and what's in it?" | `POST /v3/cohort/counts`, `POST /v3/cohort/manifest` | `build_cohort` |
-| **Retrieval** | "Give me the download links / files" | `POST /v3/cohort/manifest.txt`, `POST /v3/download` | `get_cohort_urls`, `download_cohort` |
+| **Retrieval** | "Give me the download links" | `POST /v3/cohort/manifest.txt` | `get_cohort_urls` |
 | **SQL** | "Run my custom query" + schema | `GET /v3/tables`, `/v3/tables/{table}`, `POST /v3/sql` | `list_tables`, `get_table_schema`, `run_sql` |
 | **Side tools** | View / cite / license-check a cohort | `GET /v3/viewer-url`, `POST /v3/citations`, `POST /v3/licenses` | `get_viewer_url`, `get_citations`, `get_licenses` |
 
@@ -238,7 +238,6 @@ uv run idc-api          # http://127.0.0.1:8000  — Swagger UI at /v3/docs
 | `GET /v3/viewer-url` | OHIF/SLIM viewer link for a study/series |
 | `POST /v3/citations` | Citations for a cohort |
 | `POST /v3/licenses` | License breakdown for a cohort |
-| `POST /v3/download` | Local download convenience (returns 501 unless enabled) — prefer `/cohort/manifest.txt` |
 
 ### Worked examples
 
@@ -325,22 +324,13 @@ curl -s localhost:8000/v3/citations \
 curl -s 'localhost:8000/v3/viewer-url?study_instance_uid=1.3.6.1.4.1.14519.5.2.1.7009.9004.983700485806071099502442051273'
 ```
 
-**Local download** — only when the server runs in local mode (otherwise returns `501`); use
-`dry_run` to preview the plan without transferring:
-
-```bash
-curl -s localhost:8000/v3/download \
-  -H 'content-type: application/json' \
-  -d '{"download_dir": "/data/idc", "collection_id": ["nlst"], "dry_run": true}'
-```
-
 ---
 
 ## 3. Using the MCP server (LLM agents)
 
 ```bash
-uv run idc-mcp                                       # stdio (local) — can also download files
-uv run idc-mcp --http --host 0.0.0.0 --port 8080     # hosted/shared (manifests only)
+uv run idc-mcp                                       # stdio (local)
+uv run idc-mcp --http --host 0.0.0.0 --port 8080     # hosted/shared
 ```
 
 ### Tools, by surface
@@ -350,7 +340,7 @@ uv run idc-mcp --http --host 0.0.0.0 --port 8080     # hosted/shared (manifests 
 - **Schema (for SQL):** `list_tables`, `get_table_schema`
 - **Clinical data:** `list_clinical_tables`, `get_clinical_table_schema`, `get_clinical_table`
 - **Cohort / query:** `build_cohort`, `run_sql`
-- **Retrieval & side tools:** `get_cohort_urls`, `download_cohort`, `get_viewer_url`,
+- **Retrieval & side tools:** `get_cohort_urls`, `get_viewer_url`,
   `get_citations`, `get_licenses`
 - **Resources:** `idc://guide` (data model + recommended workflow), `idc://tables`,
   `idc://schema/{table}`
@@ -411,28 +401,19 @@ configured stateless with plain-JSON responses** — each request is self-contai
 - **Session-bound MCP features are not available** (server→client sampling, elicitation,
   resource subscriptions, streamed progress) — this server exposes only client-initiated tools
   + static resources, so it doesn't use them.
-- **`download_cohort` can't write to your machine** over HTTP — retrieval returns a manifest +
-  URLs instead (see *Local vs hosted* below). Use the stdio config above when you want real
-  downloads.
 
 Operator-side detail (deploy command, host-header / DNS-rebinding settings, the autoscaling
 rationale) is in [deployment.md](../dev/deployment.md).
-
-### Local vs hosted (downloads)
-
-An MCP server can run **locally** (stdio, on your machine — it can write files, so
-`download_cohort` actually fetches DICOM via `idc-index`/s5cmd) or **hosted** (HTTP, shared —
-no filesystem access, so retrieval returns a manifest + public URLs + an `idc download`
-command instead). Same tools, two behaviors.
 
 ---
 
 ## 4. Getting the data
 
-**Recommended: get a manifest, then pull the files directly from S3/GCS.** All series URLs
-point at **public AWS S3 and GCS buckets — no credentials needed** — so the transfer never
-goes through the API server, works the same against the hosted or a local instance, and scales
-to whole collections. Two ways to do it:
+**Get a manifest, then pull the files directly from S3/GCS.** All series URLs point at
+**public AWS S3 and GCS buckets — no credentials needed** — so the transfer never goes through
+the API server (the server never moves bytes; retrieval always means URLs/manifests), works
+the same against the hosted or a local instance, and scales to whole collections. Two ways to
+do it:
 
 1. **Whole collection** — the simplest path; `cohort/manifest`'s download payload emits it for
    you when your filter is a single `collection_id`:
@@ -451,14 +432,6 @@ to whole collections. Two ways to do it:
    lines). For `source=gcs`, add `--endpoint-url https://storage.googleapis.com` to `s5cmd`.
 
 Install the CLI with `pip install idc-index` (provides the `idc` command).
-
-**Local download mode** — `POST /v3/download` (REST) or `download_cohort` (MCP) drives that
-same `idc-index`/s5cmd transfer for you as a convenience, but it works **only when the server
-itself runs on your machine** (hosted deployments return a clear error instead). It doesn't
-move data any faster than options 1–2 above, so prefer those for bulk transfers or when
-scripting against the hosted service; reach for this only when you're already running the
-server locally and want the tool/endpoint to do the transfer for you. Start with `dry_run` to
-report size, confirm, then run for real.
 
 ---
 
@@ -506,7 +479,6 @@ Environment variables (prefix `IDC_API_`):
 | `DEFAULT_PAGE_SIZE` | `100` | Default `cohort/manifest` page size |
 | `MAX_PAGE_SIZE` | `5000` | Upper bound on page size |
 | `MANIFEST_HARD_CAP` | `100000` | Max series enumerated into a manifest |
-| `ENABLE_LOCAL_DOWNLOAD` | `false` | Allow `download` to write files locally |
 | `CORS_ALLOW_ORIGINS` | `["*"]` | Allowed CORS origins (REST). List value — set as JSON, e.g. `["https://app.example.com"]` |
 | `HSTS_MAX_AGE` | `31536000` | `Strict-Transport-Security` max-age (seconds) added to every REST and hosted-MCP response. Default is the production value (1 year); dev/test deploys use `3600` so a bad deploy can't lock browsers out for a year. `0` disables the header |
 | `HOST` / `PORT` | `127.0.0.1` / `8000` | REST bind address |
