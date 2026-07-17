@@ -321,7 +321,7 @@ curl -s localhost:8000/v3/citations \
 **Viewer link** for a study (or pass `series_instance_uid=`):
 
 ```bash
-curl -s 'localhost:8000/v3/viewer-url?study_instance_uid=1.3.6.1.4.1.14519.5.2.1.7009.9004.983700485806071099502442051273'
+curl -s 'localhost:8000/v3/viewer-url?study_instance_uid=1.2.840.113654.2.55.100004988183996567551011427980805457777'
 ```
 
 ---

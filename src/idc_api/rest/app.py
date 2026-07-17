@@ -521,11 +521,11 @@ def create_app(ctx: AppContext | None = None) -> FastAPI:
     def viewer_url(
         series_instance_uid: str | None = Query(
             None,
-            examples=["1.3.6.1.4.1.14519.5.2.1.7009.9004.301563950362565728634580697817"],
+            examples=["1.2.840.113654.2.55.136638632728533399820524570150364784952"],
         ),
         study_instance_uid: str | None = Query(
             None,
-            examples=["1.3.6.1.4.1.14519.5.2.1.7009.9004.983700485806071099502442051273"],
+            examples=["1.2.840.113654.2.55.100004988183996567551011427980805457777"],
         ),
         viewer: str | None = Query(None, examples=["ohif_v3"]),
     ):
