@@ -165,7 +165,10 @@ def evaluate(status, ctype, chunk, err):
             snippet = raw[:200].decode("utf-8", "replace")
             return False, f"HTTP {status} but error envelope: {snippet}"
         try:
-            parsed = json.loads(chunk.decode("utf-8", "replace"))
+            # Parse the raw bytes: json.loads detects the encoding per RFC 8259 and raises on
+            # invalid UTF-8, so a mis-encoded payload fails rather than being silently repaired.
+            # `errors="replace"` is used only for human-readable snippets below.
+            parsed = json.loads(chunk)
         except Exception:
             # A parse failure is only benign when we truncated a large body at the cap; a short
             # body that won't parse is a real regression (invalid JSON under application/json).
