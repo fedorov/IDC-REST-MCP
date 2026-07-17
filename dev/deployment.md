@@ -126,7 +126,27 @@ URL=$(gcloud run services describe idc-api-v3 --region "$REGION" --format='value
 curl -s "$URL/v3/health"; echo
 curl -s "$URL/v3/version"; echo
 open "$URL/v3/docs"   # Swagger UI
+
+# Exercise every documented OpenAPI example against the deployment (no dependencies):
+python3 dev/smoke_openapi_examples.py "$URL"
 ```
+
+> **Post-deploy checks run automatically on every tier.** The reusable
+> [deploy.yml](../.github/workflows/deploy.yml) runs `/v3/health` + `/v3/version` + HSTS assertions
+> (against the direct `*.run.app` URL, to prove the container itself came up) and then
+> `dev/smoke_openapi_examples.py`, which reads the deployed `/v3/openapi.json` and fires a request
+> built from each declared example — so a documented value that no longer resolves (a removed
+> StudyInstanceUID, a stale example) fails the deploy rather than quietly misleading Swagger-UI
+> users. The example smoke test targets the tier's **`PUBLIC_BASE_URL`** — the public domain behind
+> the load balancer (the surface real users hit; see *Tier URLs — custom domains* and *Shared-domain
+> path routing*), and it first asserts `/v3/version` responds from Cloud Run (`Server: Google
+> Frontend`) to catch a down public URL or a URL-map/ESP routing regression. **`PUBLIC_BASE_URL` is
+> required**: if it is unset, or the public URL isn't serving, the step fails — it does **not** fall
+> back to the `*.run.app` URL, because that would skip exactly the user-facing surface this test
+> exists to cover. (So attach a tier's domain and set `PUBLIC_BASE_URL` before its first CI deploy.)
+> Because it runs against real tier data it can go red when IDC re-releases and an example UID is
+> retired; fix the example, or set the `SMOKE_SOFT_FAIL` Environment variable to downgrade that tier
+> to a warning.
 
 > **Don't use `/healthz` as a health-check path on Cloud Run's default `*.run.app` domain.**
 > Google's front end reserves that exact path and returns its own generic 404 page for it
@@ -437,6 +457,10 @@ Attaching a domain is **one-time infrastructure setup**, run out-of-band by an o
 to that tier's project — it is **not** part of the CI deploy. The mapping points at the *service
 name*, not at any revision, so every subsequent CI promotion/rollback keeps the same domain and
 nothing in the workflows changes.
+
+Once a tier's domain is live, set it as the `PUBLIC_BASE_URL` variable on that tier's GitHub
+Environment (the values in the table above) so the post-deploy example smoke test exercises the
+public surface rather than the `*.run.app` URL — see *§4 Verify*.
 
 #### (A) Domain mapping — step by step (one-time per tier)
 

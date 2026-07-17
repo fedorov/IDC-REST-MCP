@@ -7,7 +7,11 @@ name: Deploy to Cloud Run (reusable)
 #   Secrets:   GCP_PROJECT_ID, GCP_SA_KEY   (deployer SA for that tier's GCP project)
 #   Variables: RUNTIME_SA (dedicated Cloud Run runtime SA; optional — default compute SA if unset)
 #              REGION, AR_REPO, CPU, MEMORY, CONCURRENCY, MIN_INSTANCES, MAX_INSTANCES,
-#              DUCKDB_MEMORY_LIMIT, DUCKDB_THREADS   (all optional; defaults below)
+#              DUCKDB_MEMORY_LIMIT, DUCKDB_THREADS, HSTS_MAX_AGE   (all optional; defaults below)
+#              PUBLIC_BASE_URL (REQUIRED for the post-deploy example smoke test: the tier's public
+#                URL behind the load balancer. The smoke step fails if it is unset — it does not
+#                fall back to the *.run.app URL, which would skip the user-facing surface)
+#              SMOKE_SOFT_FAIL (set truthy to downgrade example-smoke failures to warnings)
 #
 # Image source: by default the image is resolved from THIS tier's own registry
 #   <REGION>-docker.pkg.dev/<GCP_PROJECT_ID>/<AR_REPO>/idc-api-v3:<build_label>
@@ -48,6 +52,12 @@ jobs:
       group: deploy-${{ inputs.environment }}
       cancel-in-progress: false
     steps:
+      - name: Check out repo
+        uses: actions/checkout@v7
+        # Needed for dev/smoke_openapi_examples.py in the post-deploy verify. The script is
+        # spec-driven (it reads the deployed /v3/openapi.json), so the checked-out ref only has
+        # to supply the script itself.
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
@@ -175,6 +185,42 @@ jobs:
             echo "- Build: \`${{ inputs.build_label }}\`"
             echo "- Image: \`${{ steps.img.outputs.image }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Smoke-test OpenAPI examples (REST)
+        if: ${{ inputs.target == 'rest' || inputs.target == 'both' }}
+        env:
+          # The tier's public URL behind the load balancer (e.g. https://api.imaging.datacommons.cancer.gov).
+          # Required: the test deliberately exercises the surface real users hit — the LB /
+          # shared-domain URL map is exactly where routing regressions live (the /v3/* glob gotcha,
+          # the ESP fallback; see dev/deployment.md "Shared-domain path routing"), which the
+          # *.run.app URL bypasses. If the user-facing URL is missing or not serving, this step
+          # fails — it does not fall back to *.run.app.
+          PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+          # Per-tier escape hatch: set SMOKE_SOFT_FAIL=1 as an Environment variable to keep a tier
+          # green when a declared example goes stale against that tier's data (still annotated).
+          SMOKE_SOFT_FAIL: ${{ vars.SMOKE_SOFT_FAIL }}
+        run: |
+          set -euo pipefail
+          # Exercise every declared OpenAPI example against the just-deployed instance, so a
+          # documented value that doesn't resolve (a removed UID, a stale example) fails the
+          # deploy instead of silently misleading Swagger-UI users. Reads the live spec — no deps.
+          if [ -z "${PUBLIC_BASE_URL:-}" ]; then
+            echo "::error::PUBLIC_BASE_URL is not set for the '${{ inputs.environment }}' Environment. Set it to the tier's public URL (behind the load balancer) so the smoke test covers the user-facing surface. See dev/deployment.md."
+            exit 1
+          fi
+          BASE="${PUBLIC_BASE_URL%/}"
+          echo "Smoke-testing $BASE (public URL, behind the load balancer)."
+          # The LB path-routes to Cloud Run; guard against a URL-map regression that lets the
+          # legacy ESP answer instead (nginx "Method does not exist"), and against the domain not
+          # serving at all. Cloud Run identifies itself as "Google Frontend"; the ESP does not.
+          # Use a GET (not HEAD): FastAPI GET routes answer HEAD with 405, which would trip -f even
+          # when routing is fine. -D - dumps the response headers for the grep; -o /dev/null drops
+          # the body; -f fails on a non-2xx GET, so an unreachable/erroring public URL fails here.
+          if ! curl -sf -D - -o /dev/null "$BASE/v3/version" | grep -iq '^server:[[:space:]]*Google Frontend'; then
+            echo "::error::$BASE/v3/version did not respond 2xx from Cloud Run (missing 'Server: Google Frontend') — the public URL is down or a load-balancer / ESP routing regression."
+            exit 1
+          fi
+          python3 dev/smoke_openapi_examples.py "$BASE"
 
       - name: Verify MCP service
         if: ${{ inputs.target == 'mcp' || inputs.target == 'both' }}
